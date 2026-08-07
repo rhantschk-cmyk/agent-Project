@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"time"
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
@@ -20,11 +21,11 @@ type ParsedEmail struct {
 	Body    string
 }
 
-func toMail(from string, to string, subject string, content string) bytes.Buffer {
+func toMail(mail ParsedEmail) bytes.Buffer {
 	var mailBuffer bytes.Buffer
-	sender_line := "From:" + from + "\r\n"
-	receiver_line := "To:" + to + "\r\n"
-	subject_line := "Subject: [ENTWURF]" + subject + "\r\n"
+	sender_line := "From:" + mail.From + "\r\n"
+	receiver_line := "To:" + mail.To + "\r\n"
+	subject_line := "Subject: [ENTWURF]" + mail.Subject + "\r\n"
 	content_definition := "Content-Type: text/plain; charset=UTF-8\r\n"
 	
 	mailBuffer.WriteString(sender_line)
@@ -32,7 +33,7 @@ func toMail(from string, to string, subject string, content string) bytes.Buffer
 	mailBuffer.WriteString(subject_line)
 	mailBuffer.WriteString(content_definition)
 	mailBuffer.WriteString("\r\n")
-	mailBuffer.WriteString(content)
+	mailBuffer.WriteString(mail.Body)
 
 	return mailBuffer
 }
@@ -93,7 +94,6 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 
 	parsed := &ParsedEmail{}
 
-	// 1. Metadaten sauber aus der Envelope holen
 	if buf.Envelope != nil {
 		parsed.Subject = buf.Envelope.Subject
 		parsed.Date = buf.Envelope.Date.Format("02.01.2006 15:04")
@@ -105,19 +105,15 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 		}
 	}
 
-	// 2. Den Body mit 'net/mail' parsen, um die Header vom Text zu trennen!
 	rawBodyBytes := buf.FindBodySection(bodySection)
 	if rawBodyBytes != nil {
-		// net/mail liest die Rohe Mail und trennt Header vom Inhalt
 		parsedMsg, err := mail.ReadMessage(bytes.NewReader(rawBodyBytes))
 		if err == nil {
-			// ReadAll liest NUR NOCH den eigentlichen Text-Body
 			bodyContent, err := io.ReadAll(parsedMsg.Body)
 			if err == nil {
 				parsed.Body = string(bodyContent)
 			}
 		} else {
-			// Fallback: Falls es kein Standard-Header-Format hatte
 			parsed.Body = string(rawBodyBytes)
 		}
 	}
@@ -127,12 +123,67 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 }
 
 
-func classifyMail(mail *ParsedEmail, ctx context.Context) string {
+func classifyMail(mail *ParsedEmail, ctx context.Context) (string, error) {
 	fmt.Println("-> Classifying Email")
-	response, err := askAgent(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body)
+	response, err := askAgentNoTools(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body)
 	if err != nil {
-		return "ERROR"
+		return "", err 
 	}
 	fmt.Println("-> Done")
-	return response
+	return response, nil
+}
+
+
+func respondEmail(client *imapclient.Client, ctx context.Context, mail *ParsedEmail, category string) (string, error) {
+	body, err := generateMail(ctx, "gpt-oss:20b", mail, category)
+	if err != nil {
+		return "", err
+	}
+	mail_response_template := ParsedEmail {
+		UID: 0,
+		To: mail.From,
+		From: mail.To,
+		Subject: "",
+		Body: body,
+		Date: "",
+	}
+	response := toMail(mail_response_template)
+	fmt.Println("-> Responding to Email")
+	createDraft(client, "[Gmail]/Drafts", response)
+	fmt.Println("-> Done")
+	return body, nil
+}
+
+func createDraft(client *imapclient.Client, draft_folder string, mail bytes.Buffer) error {
+	fmt.Println("-> Creating Draft")
+	appendOptions := &imap.AppendOptions{
+		Time:  time.Now(),
+		Flags: []imap.Flag{imap.FlagDraft},
+	}
+
+	mailBytes := mail.Bytes()
+	mailReader := bytes.NewReader(mailBytes)
+	mailSize := int64(len(mailBytes))
+
+	cmd := client.Append(draft_folder, mailSize, appendOptions)
+
+	if _, err := io.Copy(cmd, mailReader); err != nil {
+		fmt.Println("-> Fehler beim Schreiben der Mail-Daten: ", err)
+		cmd.Close()
+		return err
+	}
+
+	if err := cmd.Close(); err != nil {
+		fmt.Println("-> Fehler beim Schließen des Append-Streams: ", err)
+		return err
+	}
+
+	// 4. Jetzt erst auf die Antwort des Servers warten
+	if _, err := cmd.Wait(); err != nil {
+		fmt.Println("-> Fehler beim Erstellen des Entwurfs: ", err)
+		return err
+	}
+
+	fmt.Println("-> Entwurf erfolgreich erstellt!")
+	return nil
 }

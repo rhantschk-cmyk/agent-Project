@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 )
 
 func main() {
@@ -12,7 +11,7 @@ func main() {
 
 	client, newMailChan, err := setUpMail("imap.gmail.com:993", "r.hantschk@gmail.com", "ebtsqyammevpfway")
 	if err != nil {
-		log.Fatalf("Setupfehler: %v", err)
+		fmt.Println("-> Error while Setting up:", err)
 	}
 	defer client.Close()
 
@@ -22,22 +21,32 @@ func main() {
 	for {
 		idleCmd, err := client.Idle()
 		if err != nil {
-			log.Fatalf("Fehler beim Starten von IDLE: %v", err)
+			fmt.Println("-> Error while starting IDLE: ", err)
 		}
 		seqNum, ok := <-newMailChan
 		if !ok {
+			fmt.Println("-> FATAL: Channel closed unexpectedly")
 			break
 		}
 
 		if err := idleCmd.Close(); err != nil {
-			log.Printf("Fehler beim Schließen von IDLE: %v", err)
+			fmt.Println("-> Error while closing IDLE: ", err)
 		}
 
 		mail, err := fetchEmailDetails(client, seqNum)
 		if err != nil {
-			log.Printf("Fehler beim Holen der Mail: %v", err)
+			fmt.Println("-> Error while getting Mail: ", err)
 		} else {
-			fmt.Println(classifyMail(mail, ctx))
+			category, err := classifyMail(mail, ctx)
+			if err != nil {
+				fmt.Println("-> Error while Classifying: ", err)
+			}
+			fmt.Println("-> Category", category)
+			response, err := respondEmail(client, ctx, mail, category)
+			fmt.Println("-> Model Created Draft with:", response)
+			if err != nil {
+				fmt.Println("-> Error while responding: ", err)
+			}
 		}
 	}
 
