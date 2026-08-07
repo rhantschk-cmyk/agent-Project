@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
+	"net/mail"
 
-	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/emersion/go-imap/v2"
-
+	"github.com/emersion/go-imap/v2/imapclient"
 )
 
 type ParsedEmail struct {
@@ -36,6 +38,7 @@ func toMail(from string, to string, subject string, content string) bytes.Buffer
 }
 
 func setUpMail(ServerAddress string, Username string, appToken string) (*imapclient.Client, chan uint32, error) {
+	fmt.Println("-> Setting Up Mail connection")
 	newMailChan := make(chan uint32, 100)
 
 	options := &imapclient.Options{
@@ -59,12 +62,15 @@ func setUpMail(ServerAddress string, Username string, appToken string) (*imapcli
 	}
 
 	_ = client.Select("INBOX", nil) 
+	fmt.Println("-> Success")
 
 	return client, newMailChan, nil
 
 }
 
 func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, error) {
+	fmt.Println("-> Fetching Mail")
+	
 	bodySection := &imap.FetchItemBodySection{}
 	fetchArgs := &imap.FetchOptions{
 		Envelope:    true,
@@ -77,7 +83,7 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 
 	msg := fetchCmd.Next()
 	if msg == nil {
-		return nil, fmt.Errorf("-> Nachricht nicht gefunden")
+		return nil, fmt.Errorf("nachricht nicht gefunden")
 	}
 
 	buf, err := msg.Collect()
@@ -87,10 +93,10 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 
 	parsed := &ParsedEmail{}
 
+	// 1. Metadaten sauber aus der Envelope holen
 	if buf.Envelope != nil {
 		parsed.Subject = buf.Envelope.Subject
 		parsed.Date = buf.Envelope.Date.Format("02.01.2006 15:04")
-
 		if len(buf.Envelope.From) > 0 {
 			parsed.From = buf.Envelope.From[0].Addr()
 		}
@@ -99,10 +105,34 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 		}
 	}
 
-	rawBody := buf.FindBodySection(bodySection)
-	if rawBody != nil {
-		parsed.Body = string(rawBody)
+	// 2. Den Body mit 'net/mail' parsen, um die Header vom Text zu trennen!
+	rawBodyBytes := buf.FindBodySection(bodySection)
+	if rawBodyBytes != nil {
+		// net/mail liest die Rohe Mail und trennt Header vom Inhalt
+		parsedMsg, err := mail.ReadMessage(bytes.NewReader(rawBodyBytes))
+		if err == nil {
+			// ReadAll liest NUR NOCH den eigentlichen Text-Body
+			bodyContent, err := io.ReadAll(parsedMsg.Body)
+			if err == nil {
+				parsed.Body = string(bodyContent)
+			}
+		} else {
+			// Fallback: Falls es kein Standard-Header-Format hatte
+			parsed.Body = string(rawBodyBytes)
+		}
 	}
 
+	fmt.Println("-> Done")
 	return parsed, nil
+}
+
+
+func classifyMail(mail *ParsedEmail, ctx context.Context) string {
+	fmt.Println("-> Classifying Email")
+	response, err := askAgent(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body)
+	if err != nil {
+		return "ERROR"
+	}
+	fmt.Println("-> Done")
+	return response
 }
