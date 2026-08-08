@@ -9,7 +9,8 @@ func main() {
 	fmt.Println("-> Application started")
 	ctx := context.Background()
 
-	client, newMailChan, err := setUpMail("imap.gmail.com:993", "r.hantschk@gmail.com", "ebtsqyammevpfway")
+	// Load Config File HERE
+	client, newMailChan, err := setUpMail("imap.gmail.com:993", "r.hantschk@gmail.com", "ebtsqyammevpfway") // <- Config File
 	if err != nil {
 		fmt.Println("-> Error while Setting up:", err)
 	}

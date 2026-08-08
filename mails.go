@@ -12,6 +12,7 @@ import (
 	"github.com/emersion/go-imap/v2/imapclient"
 )
 
+// To easily parse and unparse emails
 type ParsedEmail struct {
 	UID     uint32
 	From    string
@@ -22,6 +23,7 @@ type ParsedEmail struct {
 }
 
 func toMail(mail ParsedEmail) bytes.Buffer {
+	// Converting Struct to Buffer 
 	var mailBuffer bytes.Buffer
 	sender_line := "From:" + mail.From + "\r\n"
 	receiver_line := "To:" + mail.To + "\r\n"
@@ -40,8 +42,10 @@ func toMail(mail ParsedEmail) bytes.Buffer {
 
 func setUpMail(ServerAddress string, Username string, appToken string) (*imapclient.Client, chan uint32, error) {
 	fmt.Println("-> Setting Up Mail connection")
+	// Setting up Channel to make things work when the function ends (new mails spawn in this channel)
 	newMailChan := make(chan uint32, 100)
 
+	// Event Handler when new Email received
 	options := &imapclient.Options{
 		UnilateralDataHandler: &imapclient.UnilateralDataHandler{
 			Mailbox: func(data *imapclient.UnilateralDataMailbox) {
@@ -53,11 +57,15 @@ func setUpMail(ServerAddress string, Username string, appToken string) (*imapcli
 		},
 	}
 
+	// Setting up client with options
 	client, err := imapclient.DialTLS(ServerAddress, options)
 	if err != nil {
 		return nil, nil, err 
 	}
 
+	// Loging in 
+	// and selecting Inbox as place where to look
+	// for new mails
 	if err := client.Login(Username, appToken).Wait(); err != nil {
 		return nil, nil, err 
 	}
@@ -72,6 +80,8 @@ func setUpMail(ServerAddress string, Username string, appToken string) (*imapcli
 func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, error) {
 	fmt.Println("-> Fetching Mail")
 	
+	// Converting email to struct
+	// (written by Gemini)
 	bodySection := &imap.FetchItemBodySection{}
 	fetchArgs := &imap.FetchOptions{
 		Envelope:    true,
@@ -122,10 +132,13 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 	return parsed, nil
 }
 
+// HERE IMPORTANT LATER CONFIG FILE
 
 func classifyMail(mail *ParsedEmail, ctx context.Context) (string, error) {
 	fmt.Println("-> Classifying Email")
-	response, err := askAgentNoTools(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body)
+	// Ask Agent without tools to classify Email 
+	// (no memory)
+	response, err := askAgentNoTools(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body) // <- Config File
 	if err != nil {
 		return "", err 
 	}
@@ -135,10 +148,11 @@ func classifyMail(mail *ParsedEmail, ctx context.Context) (string, error) {
 
 
 func respondEmail(client *imapclient.Client, ctx context.Context, mail *ParsedEmail, category string) (string, error) {
-	body, err := generateMail(ctx, "gpt-oss:20b", mail, category)
+	body, err := generateMail(ctx, "gpt-oss:20b", mail, category, client) // <- Config File
 	if err != nil {
 		return "", err
 	}
+	// Creating struct then converting to email
 	mail_response_template := ParsedEmail {
 		UID: 0,
 		To: mail.From,
@@ -147,9 +161,10 @@ func respondEmail(client *imapclient.Client, ctx context.Context, mail *ParsedEm
 		Body: body,
 		Date: "",
 	}
+	// Creating Draft
 	response := toMail(mail_response_template)
 	fmt.Println("-> Responding to Email")
-	createDraft(client, "[Gmail]/Drafts", response)
+	createDraft(client, "[Gmail]/Drafts", response) // <- Config File
 	fmt.Println("-> Done")
 	return body, nil
 }
@@ -173,12 +188,12 @@ func createDraft(client *imapclient.Client, draft_folder string, mail bytes.Buff
 		return err
 	}
 
+	// IMPORTANT: close server
 	if err := cmd.Close(); err != nil {
 		fmt.Println("-> Fehler beim Schließen des Append-Streams: ", err)
 		return err
 	}
 
-	// 4. Jetzt erst auf die Antwort des Servers warten
 	if _, err := cmd.Wait(); err != nil {
 		fmt.Println("-> Fehler beim Erstellen des Entwurfs: ", err)
 		return err
