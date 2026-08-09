@@ -11,7 +11,7 @@ import (
 )
 
 
-func askAgentNoTools(ctx context.Context, model string, sysPromt string, promt string) (string, error) {
+func askAgentNoTools(ctx context.Context, cfg *Config, promt string) (string, error) {
 	fmt.Println("-> Asking Agent:", promt)
 	// Setup Client Connection
 	client, err := api.ClientFromEnvironment()
@@ -22,7 +22,7 @@ func askAgentNoTools(ctx context.Context, model string, sysPromt string, promt s
 
 	messages = append(messages, api.Message{
 		Role: "system",
-		Content: sysPromt,
+		Content: cfg.Program.SysPromts.Classify,
 	})
 
 	messages = append(messages, api.Message{
@@ -31,7 +31,7 @@ func askAgentNoTools(ctx context.Context, model string, sysPromt string, promt s
 	})
 
 	req := &api.ChatRequest{
-		Model: model,
+		Model: cfg.Program.Model,
 		Messages: messages,
 		Stream: new (bool),
 	}
@@ -51,16 +51,16 @@ func askAgentNoTools(ctx context.Context, model string, sysPromt string, promt s
 	return resp, err
 }
 
-func generateMail(ctx context.Context, model string, mail *ParsedEmail, category string, imapClient *imapclient.Client) (string, error) {
+func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Config, mail *ParsedEmail, category string) (string, error) {
 	fmt.Println("-> Generating Email")
 	messages := []api.Message{}
 
 	var sysPrompt string
 	switch category {
 	case "STANDARD":
-		sysPrompt = "Du bist der Email Beantwortungsagent von Raphael Hantschk. Nutze deine Tools um Informationen zu recherchieren, falls nötig. Wenn du bereit bist zu antworten, rufe UNBEDINGT das Tool 'finish_and_reply' mit dem finalen E-Mail Text auf!"
+		sysPrompt = cfg.Program.SysPromts.Standard
 	case "IMPORTANT":
-		sysPrompt = "Du bist der Email Beantwortungsagent von Raphael Hantschk. Diese E-Mail hat HOHE PRIORITÄT. Nutze deine Tools zur Recherche. Wenn du fertig bist, rufe das Tool 'finish_and_reply' auf!"
+		sysPrompt = cfg.Program.SysPromts.Important	
 	case "SPAM":
 		return "SPAM", nil
 	}
@@ -76,115 +76,24 @@ func generateMail(ctx context.Context, model string, mail *ParsedEmail, category
 		Content: userContent,
 	})
 
-	// Tools 
+	allTools := buildAllTools(true)
 
-	// 1. search_inbox(query string)
-	searchInboxProps := []Property{}
-	searchInboxProps = append(searchInboxProps, Property{
-		name: "query",
-		category: "string",
-		description: "String to search for in the Inbox",
-	})
-
-	searchInboxTool := Tool {
-		name: "search_inbox",
-		description: "Searches the whole inbox after mails by the given string",
-	}
-
-	searchInbox := build_tool(searchInboxProps, searchInboxTool)
-
-	// 2. get_conversation_history(sender_email string, count int) - Korrigiert
-	getConversationHistoryProps := []Property{
-		{
-			name:        "sender_email",
-			category:    "string",
-			description: "The email address of the sender to get the history for",
-		},
-		{
-			name:        "count",
-			category:    "integer",
-			description: "Number of emails to fetch from history (e.g. 3 or 5)",
-		},
-	}
-
-	getConversationHistoryTool := Tool{
-		name:        "get_conversation_history",
-		description: "Fetches a specific number of previous emails from a conversation with a sender",
-	}
-
-	getConversationHistory := build_tool(getConversationHistoryProps, getConversationHistoryTool)
-
-	// 3. search_knowledge_base(query string)
-	searchKnowledgeBaseProps := []Property{
-		{
-			name:        "query",
-			category:    "string",
-			description: "The topic, keyword, or question to search for in the company knowledge base or documents",
-		},
-	}
-
-	searchKnowledgeBaseTool := Tool{
-		name:        "search_knowledge_base",
-		description: "Searches uploaded documents and PDF files for facts, prices, and guidelines",
-	}
-
-	searchKnowledgeBase := build_tool(searchKnowledgeBaseProps, searchKnowledgeBaseTool)
-
-	// 4. list_knowledge()
-	listKnowledgeProps := []Property{} // Keine Parameter benötigt
-
-	listKnowledgeTool := Tool{
-		name:        "list_knowledge",
-		description: "Lists all available document names and knowledge sources currently indexed in the system",
-	}
-
-	listKnowledge := build_tool(listKnowledgeProps, listKnowledgeTool)
-
-	// 5. finish_and_reply(draft_body string, notes string)
-	finishAndReplyProps := []Property{
-		{
-			name:        "draft_body",
-			category:    "string",
-			description: "The complete, finalized text body for the email response including greeting and sign-off",
-		},
-		{
-			name:        "notes",
-			category:    "string",
-			description: "Internal reasoning or notes explaining why this response was generated (e.g., 'Used price list from AGB.pdf')",
-		},
-	}
-
-	finishAndReplyTool := Tool{
-		name:        "finish_and_reply",
-		description: "Finishes the agent loop and creates the final draft email in the user's drafts folder",
-	}
-
-	finishAndReply := build_tool(finishAndReplyProps, finishAndReplyTool)
-
-	allTools := api.Tools {
-		searchInbox,
-	    getConversationHistory,
-	    searchKnowledgeBase,
-	    listKnowledge,
-	    finishAndReply,
-	}
-
-	result, err := runAgentLoop(ctx, imapClient, model, messages, allTools)
+	result, err := runAgentLoop(imapClient, ctx, cfg, messages, allTools)
 	return result, err
 }
 
-func runAgentLoop(ctx context.Context, client *imapclient.Client, model string, initialMessages []api.Message, allTools api.Tools) (string, error) {
+func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Config, initialMessages []api.Message, allTools api.Tools) (string, error) {
 	ollamaClient, err := api.ClientFromEnvironment()
 	if err != nil {
 		return "", err
 	}
 
 	messages := initialMessages
-	maxTurns := 10 // Safety-Limit gegen Endlosschleifen
+	maxTurns := 30 // Safety-Limit gegen Endlosschleifen
 
 	for turn := 0; turn < maxTurns; turn++ {
 		req := &api.ChatRequest{
-			Model:    model,
+			Model:    cfg.Program.Model,
 			Messages: messages,
 			Tools:    allTools,
 			Stream:   new(bool),
@@ -198,12 +107,11 @@ func runAgentLoop(ctx context.Context, client *imapclient.Client, model string, 
 		if err != nil {
 			return "", fmt.Errorf("Fehler im Chat: %w", err)
 		}
+		fmt.Printf("-> [Turn %d] Sendefehler-Check | Messages im Context: %d\n", turn, len(messages))
+		lastMsg := messages[len(messages)-1]
+		fmt.Printf("-> Letzte Rolle: %s | Content: %s\n", lastMsg.Role, lastMsg.Content)
 
 		messages = append(messages, responseMessage)
-
-		if len(responseMessage.ToolCalls) == 0 {
-			return responseMessage.Content, nil
-		}
 
 		for _, toolCall := range responseMessage.ToolCalls {
 			toolName := toolCall.Function.Name
@@ -226,17 +134,16 @@ func runAgentLoop(ctx context.Context, client *imapclient.Client, model string, 
 
 			case "search_inbox":
 				query, _ := args["query"].(string)
-				toolResult = executeSearchInbox(client, query)
+				toolResult = executeSearchInbox(imapClient, query)
 
 			case "get_conversation_history":
 				sender, _ := args["sender_email"].(string)
-				// JSON-Zahlen kommen in Go oft als float64 an:
 				countFloat, _ := args["count"].(float64)
 				count := int(countFloat)
 				if count == 0 {
 					count = 3 // Fallback
 				}
-				toolResult = executeGetConversationHistory(client, sender, count)
+				toolResult = executeGetConversationHistory(imapClient, sender, count)
 
 			case "search_knowledge_base":
 				query, _ := args["query"].(string)
@@ -244,6 +151,13 @@ func runAgentLoop(ctx context.Context, client *imapclient.Client, model string, 
 
 			case "list_knowledge":
 				toolResult = executeListKnowledge()
+
+			case "read_memory":
+				toolResult = executeReadMemory(cfg)
+
+			case "write_memory":
+				fact, _ := args["fact"].(string)
+				toolResult = executeSaveMemory(fact, cfg)
 
 			default:
 				toolResult = fmt.Sprintf("Fehler: Unbekanntes Tool %s", toolName)
@@ -262,7 +176,6 @@ func runAgentLoop(ctx context.Context, client *imapclient.Client, model string, 
 
 
 func executeSearchInbox(client *imapclient.Client, query string) string {
-	fmt.Printf("-> [Tool] Searching Inbox for: %s\n", query)
 	fmt.Printf("-> [Tool] Searching Inbox for: %s\n", query)
 
 	// Suche nach Mails, die das Text-Muster im Body oder Subject enthalten
@@ -329,7 +242,6 @@ func executeGetConversationHistory(client *imapclient.Client, sender string, cou
 
 func executeSearchKnowledgeBase(query string) string {
 	fmt.Printf("-> [Tool] Searching Knowledge Base for: %s\n", query)
-	// Hier dein RAG-Feature anbinden
 	return "Tool noch nicht verfügbar"
 }
 

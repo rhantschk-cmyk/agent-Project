@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
@@ -40,7 +41,7 @@ func toMail(mail ParsedEmail) bytes.Buffer {
 	return mailBuffer
 }
 
-func setUpMail(ServerAddress string, Username string, appToken string) (*imapclient.Client, chan uint32, error) {
+func setUpMail(cfg *Config) (*imapclient.Client, chan uint32, error) {
 	fmt.Println("-> Setting Up Mail connection")
 	// Setting up Channel to make things work when the function ends (new mails spawn in this channel)
 	newMailChan := make(chan uint32, 100)
@@ -58,7 +59,7 @@ func setUpMail(ServerAddress string, Username string, appToken string) (*imapcli
 	}
 
 	// Setting up client with options
-	client, err := imapclient.DialTLS(ServerAddress, options)
+	client, err := imapclient.DialTLS(cfg.Email.Server, options)
 	if err != nil {
 		return nil, nil, err 
 	}
@@ -66,7 +67,7 @@ func setUpMail(ServerAddress string, Username string, appToken string) (*imapcli
 	// Loging in 
 	// and selecting Inbox as place where to look
 	// for new mails
-	if err := client.Login(Username, appToken).Wait(); err != nil {
+	if err := client.Login(cfg.Email.Username, cfg.Email.AppToken).Wait(); err != nil {
 		return nil, nil, err 
 	}
 
@@ -132,13 +133,12 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 	return parsed, nil
 }
 
-// HERE IMPORTANT LATER CONFIG FILE
 
-func classifyMail(mail *ParsedEmail, ctx context.Context) (string, error) {
+func classifyMail(mail *ParsedEmail, ctx context.Context, cfg *Config) (string, error) {
 	fmt.Println("-> Classifying Email")
 	// Ask Agent without tools to classify Email 
 	// (no memory)
-	response, err := askAgentNoTools(ctx, "gpt-oss:20b", "Du bist ein E-Mail Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam emails, IMPORTANT für wichtige emails, STANDARD für emails die weder noch sind. WICHTIG: antworte nur in einem Wort", mail.Body) // <- Config File
+	response, err := askAgentNoTools(ctx, cfg, mail.Body) // No Config Problems
 	if err != nil {
 		return "", err 
 	}
@@ -147,8 +147,9 @@ func classifyMail(mail *ParsedEmail, ctx context.Context) (string, error) {
 }
 
 
-func respondEmail(client *imapclient.Client, ctx context.Context, mail *ParsedEmail, category string) (string, error) {
-	body, err := generateMail(ctx, "gpt-oss:20b", mail, category, client) // <- Config File
+func respondEmail(client *imapclient.Client, ctx context.Context, cfg *Config, mail *ParsedEmail, category string) (string, error) {
+	rawBody, err := generateMail(client, ctx, cfg, mail, category) // No Config Problems
+	finalBody := strings.ReplaceAll(rawBody, `\n`, "\n")
 	if err != nil {
 		return "", err
 	}
@@ -158,18 +159,18 @@ func respondEmail(client *imapclient.Client, ctx context.Context, mail *ParsedEm
 		To: mail.From,
 		From: mail.To,
 		Subject: "",
-		Body: body,
+		Body: finalBody,
 		Date: "",
 	}
 	// Creating Draft
 	response := toMail(mail_response_template)
 	fmt.Println("-> Responding to Email")
-	createDraft(client, "[Gmail]/Drafts", response) // <- Config File
+	createDraft(client, cfg, response) // No Config Problems
 	fmt.Println("-> Done")
-	return body, nil
+	return finalBody, nil
 }
 
-func createDraft(client *imapclient.Client, draft_folder string, mail bytes.Buffer) error {
+func createDraft(client *imapclient.Client, cfg *Config, mail bytes.Buffer) error {
 	fmt.Println("-> Creating Draft")
 	appendOptions := &imap.AppendOptions{
 		Time:  time.Now(),
@@ -180,7 +181,7 @@ func createDraft(client *imapclient.Client, draft_folder string, mail bytes.Buff
 	mailReader := bytes.NewReader(mailBytes)
 	mailSize := int64(len(mailBytes))
 
-	cmd := client.Append(draft_folder, mailSize, appendOptions)
+	cmd := client.Append(cfg.Email.DraftFolder, mailSize, appendOptions)
 
 	if _, err := io.Copy(cmd, mailReader); err != nil {
 		fmt.Println("-> Fehler beim Schreiben der Mail-Daten: ", err)
