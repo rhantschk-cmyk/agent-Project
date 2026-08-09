@@ -24,6 +24,7 @@ type ProgramConfig struct {
 	MemoryCompressionTime int `json:"MemoryCompressionTime"`
 	MemoryFile string `json:"memoryFile"`
 	MemoryCompressPromt string `json:"MemoryCompressPromt"`
+	KnowledgeDir string `json:"KnowledgeDir"`
 	SysPromts SysPromtsConfig `json:"sysPromts"`
 }
 

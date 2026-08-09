@@ -17,6 +17,7 @@ var memoryMutex sync.Mutex
 // Tools
 
 func executeSaveMemory(fact string, cfg *Config) string {
+	fmt.Println("-> [Tool] Saving fact in Memory:", fact)
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
@@ -37,6 +38,7 @@ func executeSaveMemory(fact string, cfg *Config) string {
 }
 
 func executeReadMemory(cfg *Config) string {
+	fmt.Println("-> [Tool] Reading Memory")
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 

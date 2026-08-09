@@ -85,26 +85,26 @@ func buildAllTools(isEmail bool) api.Tools {
 	getConversationHistory := build_tool(getConversationHistoryProps, getConversationHistoryTool)
 
 	// 3. search_knowledge_base(query string)
-	searchKnowledgeBaseProps := []Property{
+	searchDocsProps := []Property{
 		{
-			name:        "query",
+			name:        "doc_name",
 			category:    "string",
-			description: "The topic, keyword, or question to search for in the company knowledge base or documents",
+			description: "The Filename for the Document to read",
 		},
 	}
 
-	searchKnowledgeBaseTool := Tool{
-		name:        "search_knowledge_base",
-		description: "Searches uploaded documents and PDF files for facts, prices, and guidelines",
+	searchDocsTool := Tool{
+		name:        "search_docs",
+		description: "Returns the full content of o Document. A Document could be an Email Template or just Information",
 	}
 
-	searchKnowledgeBase := build_tool(searchKnowledgeBaseProps, searchKnowledgeBaseTool)
+	searchDocs := build_tool(searchDocsProps, searchDocsTool)
 
 	// 4. list_knowledge()
 	listDocsProps := []Property{} // Keine Parameter benötigt
 
 	listDocsTool := Tool{
-		name:        "list_knowledge",
+		name:        "list_all_docs",
 		description: "Lists all available document names currently indexed in the system",
 	}
 
@@ -161,7 +161,7 @@ func buildAllTools(isEmail bool) api.Tools {
 		return api.Tools {
 			searchInbox,
 			getConversationHistory,
-			searchKnowledgeBase,
+			searchDocs,
 			listDocs,
 			readMemory,
 			writeMemory,
@@ -172,7 +172,7 @@ func buildAllTools(isEmail bool) api.Tools {
 	return api.Tools {
 			searchInbox,
 			getConversationHistory,
-			searchKnowledgeBase,
+			searchDocs,
 			listDocs,
 			readMemory,
 			writeMemory,
@@ -203,11 +203,11 @@ func executeToolCalls(toolCall api.ToolCall, client *imapclient.Client, cfg *Con
 		return executeGetConversationHistory(client, sender, count)
 
 	case "search_knowledge_base":
-		query, _ := args["query"].(string)
-		return executeSearchKnowledgeBase(query)
+		query, _ := args["doc"].(string)
+		return executeSearchDocs(cfg, query)
 
 	case "list_docs":
-		return executeListKnowledge()
+		return executeListDocs(cfg)
 
 	case "read_memory":
 		return executeReadMemory(cfg)

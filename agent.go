@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/emersion/go-imap/v2"
@@ -108,8 +110,6 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 			return "", fmt.Errorf("Fehler im Chat: %w", err)
 		}
 		fmt.Printf("-> [Turn %d] Sendefehler-Check | Messages im Context: %d\n", turn, len(messages))
-		lastMsg := messages[len(messages)-1]
-		fmt.Printf("-> Letzte Rolle: %s | Content: %s\n", lastMsg.Role, lastMsg.Content)
 
 		messages = append(messages, responseMessage)
 
@@ -145,12 +145,12 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 				}
 				toolResult = executeGetConversationHistory(imapClient, sender, count)
 
-			case "search_knowledge_base":
-				query, _ := args["query"].(string)
-				toolResult = executeSearchKnowledgeBase(query)
+			case "search_docs":
+				query, _ := args["doc_name"].(string)
+				toolResult = executeSearchDocs(cfg, query)
 
-			case "list_knowledge":
-				toolResult = executeListKnowledge()
+			case "list_all_docs":
+				toolResult = executeListDocs(cfg)
 
 			case "read_memory":
 				toolResult = executeReadMemory(cfg)
@@ -240,12 +240,35 @@ func executeGetConversationHistory(client *imapclient.Client, sender string, cou
 	return strings.Join(history, "\n---\n")
 }
 
-func executeSearchKnowledgeBase(query string) string {
+func executeSearchDocs(cfg *Config, query string) string {
 	fmt.Printf("-> [Tool] Searching Knowledge Base for: %s\n", query)
-	return "Tool noch nicht verfügbar"
+	content, err := os.ReadFile(filepath.Join(cfg.Program.KnowledgeDir, fmt.Sprintf(query, ".md")))
+	if err != nil {
+		return "Could not read file"
+	}
+	return string(content)
 }
 
-func executeListKnowledge() string {
-	fmt.Println("-> [Tool] Listing Knowledge Sources")
-	return "Tool noch nicht verfügbar"
+func executeListDocs(cfg *Config) string {
+	fmt.Println("-> [Tool] Listing Docs")
+	entries, err := os.ReadDir(cfg.Program.KnowledgeDir)
+	if err != nil || len(entries) == 0 {
+		return "No Knowledge Files found, nothing to list up"
+	}
+
+	var builder strings.Builder
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		extension := filepath.Ext(name)
+		nameWithoutExtension := strings.TrimSuffix(name, extension)
+
+		builder.WriteString(nameWithoutExtension)
+		builder.WriteString(", ")
+	}
+
+	return builder.String()
 }
