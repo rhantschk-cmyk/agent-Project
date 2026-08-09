@@ -21,7 +21,7 @@ func executeSaveMemory(fact string, cfg *Config) string {
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
-	f, err := os.OpenFile(cfg.Program.MemoryFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(cfg.Memory.MemoryFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return "Error while opening Memory-File"
 	}
@@ -42,7 +42,7 @@ func executeReadMemory(cfg *Config) string {
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
-	content, err := os.ReadFile(cfg.Program.MemoryFile)
+	content, err := os.ReadFile(cfg.Memory.MemoryFile)
 	if err != nil || len(content) == 0 {
 		return "Memory File is empty"
 	}
@@ -52,7 +52,7 @@ func executeReadMemory(cfg *Config) string {
 
 func StartMemoryCompressor(ctx context.Context, cfg *Config) {
 	fmt.Println("-> [Memory] Started Memory Compressor")
-	ticker := time.NewTicker(time.Duration(cfg.Program.MemoryCompressionTime) * time.Minute)
+	ticker := time.NewTicker(time.Duration(cfg.Memory.MemoryCompressionTime) * time.Minute)
 	go func() {
 		for {
 			select {
@@ -71,7 +71,7 @@ func compressMemory(ctx context.Context, cfg *Config) {
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
-	content, err := os.ReadFile(cfg.Program.MemoryFile)
+	content, err := os.ReadFile(cfg.Memory.MemoryFile)
 	if err != nil || len(content) < 200 {
 		return
 	}
@@ -83,7 +83,7 @@ func compressMemory(ctx context.Context, cfg *Config) {
 		return
 	}
 
-	prompt := cfg.Program.MemoryCompressPromt + string(content)
+	prompt := cfg.Memory.MemoryCompressPromt + string(content)
 
 	req := &api.ChatRequest{
 		Model: cfg.Program.Model,
@@ -101,7 +101,7 @@ func compressMemory(ctx context.Context, cfg *Config) {
 	})
 
 	if err == nil && strings.TrimSpace(compressedText) != "" {
-		_ = os.WriteFile(cfg.Program.MemoryFile, []byte(compressedText+"\n"), 0644)
+		_ = os.WriteFile(cfg.Memory.MemoryFile, []byte(compressedText+"\n"), 0644)
 		fmt.Println("-> [Memory] Memory erfolgreich komprimiert!")
 	}
 }

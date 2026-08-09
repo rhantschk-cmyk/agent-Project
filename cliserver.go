@@ -52,7 +52,7 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 		messages := []api.Message{
 			{
 				Role: "system",
-				Content: cfg.Program.SysPromts.CLI,
+				Content: cfg.SysPromts.CLI,
 			},
 			{
 				Role: "user",

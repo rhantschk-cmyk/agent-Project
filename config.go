@@ -7,32 +7,36 @@ import (
 )
 
 type EmailConfig struct {
-	Username string `json:"Username"`
-	AppToken string `json:"AppToken"`
-	Server string `json:"Server"`
-	DraftFolder string `json:"DraftFolder"`
+	Username		string	`json:"username"`
+	AppToken		string	`json:"app_token"`
+	Server 			string	`json:"server"`
+	DraftFolder		string	`json:"draft_folder"`
 }
 
 type SysPromtsConfig struct {
-	Standard string `json:"STANDARD"`
-	Important string `json:"IMPORTANT"`
-	Classify string `json:"CLASSIFY"`
-	CLI string `json:"CLI"`
+	Standard		string	`json:"standard"`
+	Important		string	`json:"important"`
+	Classify		string	`json:"classify"`
+	CLI				string	`json:"cli"`
 }
 
 type ProgramConfig struct {
-	Model string `json:"model"`
-	MemoryCompressionTime int `json:"MemoryCompressionTime"`
-	MemoryFile string `json:"memoryFile"`
-	MemoryCompressPromt string `json:"MemoryCompressPromt"`
-	KnowledgeDir string `json:"KnowledgeDir"`
-	CLISecretKey string `json:"CLISecretKey"`
-	SysPromts SysPromtsConfig `json:"sysPromts"`
+	Model			string	`json:"model"`
+	KnowledgeDir	string	`json:"knowledge_dir"`
+	CLISecretKey 	string	`json:"cli_secret_key"`
 }
 
+type MemoryConfig struct {
+	MemoryCompressionTime	int		`json:"memory_compression_time"`
+	MemoryFile 				string 	`json:"memory_file"`
+	MemoryCompressPromt 	string	`json:"memory_compress_promt"`
+} 
+
 type Config struct {
-	Email EmailConfig `json:"Email"`
-	Program ProgramConfig `json:"Program"`
+	Email 			EmailConfig 	`json:"e-mail"`
+	Program 		ProgramConfig 	`json:"program"`
+	Memory 			MemoryConfig 	`json:"memory"`
+	SysPromts 		SysPromtsConfig	`json:"sys_promts"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

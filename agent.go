@@ -24,7 +24,7 @@ func askAgentNoTools(ctx context.Context, cfg *Config, promt string) (string, er
 
 	messages = append(messages, api.Message{
 		Role: "system",
-		Content: cfg.Program.SysPromts.Classify,
+		Content: cfg.SysPromts.Classify,
 	})
 
 	messages = append(messages, api.Message{
@@ -60,9 +60,9 @@ func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Confi
 	var sysPrompt string
 	switch category {
 	case "STANDARD":
-		sysPrompt = cfg.Program.SysPromts.Standard
+		sysPrompt = cfg.SysPromts.Standard
 	case "IMPORTANT":
-		sysPrompt = cfg.Program.SysPromts.Important	
+		sysPrompt = cfg.SysPromts.Important	
 	case "SPAM":
 		return "SPAM", nil
 	}
