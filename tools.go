@@ -47,7 +47,7 @@ func build_tool(all_properties []Property, target_tool Tool) api.Tool {
 	return tool
 }
 
-func buildAllTools(isEmail bool) api.Tools {
+func buildAllTools() api.Tools {
 	// 1. search_inbox(query string)
 	searchInboxProps := []Property{}
 	searchInboxProps = append(searchInboxProps, Property{
@@ -136,87 +136,88 @@ func buildAllTools(isEmail bool) api.Tools {
 
 	writeMemory := build_tool(writeMemoryProps, writeMemoryTool)
 
-	if isEmail {
-		// 7. finish_and_reply(draft_body string, notes string)
-		finishAndReplyProps := []Property{
-			{
-				name:        "draft_body",
-				category:    "string",
-				description: "The complete, finalized text body for the email response including greeting and sign-off",
-			},
-			{
-				name:        "notes",
-				category:    "string",
-				description: "Internal reasoning or notes explaining why this response was generated (e.g., 'Used price list from AGB.pdf')",
-			},
-		}
-	
-		finishAndReplyTool := Tool{
-			name:        "finish_and_reply",
-			description: "Finishes the agent loop and creates the final draft email in the user's drafts folder",
-		}
-	
-		finishAndReply := build_tool(finishAndReplyProps, finishAndReplyTool)
-	
-		return api.Tools {
-			searchInbox,
-			getConversationHistory,
-			searchDocs,
-			listDocs,
-			readMemory,
-			writeMemory,
-			finishAndReply,
-		}
+	// 7. finish_and_reply(draft_body string, notes string)
+	finishAndReplyProps := []Property{
+		{
+			name:        "response",
+			category:    "string",
+			description: "The complete, finalized response (Email or Chat-Response depends on the Situation)",
+		},
+		{
+			name:        "notes",
+			category:    "string",
+			description: "Internal reasoning or notes explaining why this response was generated (e.g., 'Used price list from AGB.pdf')",
+		},
 	}
-
+	
+	finishAndReplyTool := Tool{
+		name:        "finish_and_reply",
+		description: "Finishes the agent loop and uses the response for creating an Email Draft or just answering the User. Depends on the Situation",
+	}
+	
+	finishAndReply := build_tool(finishAndReplyProps, finishAndReplyTool)
+	
 	return api.Tools {
-			searchInbox,
-			getConversationHistory,
-			searchDocs,
-			listDocs,
-			readMemory,
-			writeMemory,
+		searchInbox,
+		getConversationHistory,
+		searchDocs,
+		listDocs,
+		readMemory,
+		writeMemory,
+		finishAndReply,
 	}
 }
 
 
-func executeToolCalls(toolCall api.ToolCall, client *imapclient.Client, cfg *Config) string {
-	toolName := toolCall.Function.Name			
+func executeToolCalls(toolCall api.ToolCall, imapClient *imapclient.Client, cfg *Config) (string, error) {
+	toolName := toolCall.Function.Name
 	args := toolCall.Function.Arguments.ToMap()
 
 	fmt.Printf("-> Agent ruft Tool auf: %s\n", toolName)
 
+	if toolName == "finish_and_reply" {
+		response, _ := toolCall.Function.Arguments.ToMap()["response"].(string)
+		notes, _ := args["notes"].(string)
+
+		fmt.Printf("-> [Agent Reasoning/Notes]: %s\n", notes)
+		fmt.Println("-> Agent beendet Recherche & erstellt Entwurf.")
+		return response, fmt.Errorf("Finished") // Beendet den Loop und gibt den E-Mail-Text zurück!
+	}
+
+	// NORMALE TOOLS AUSFÜHREN
+	var toolResult string
 	switch toolName {
 
 	case "search_inbox":
 		query, _ := args["query"].(string)
-		return executeSearchInbox(client, query)
+		toolResult = executeSearchInbox(imapClient, query)
 
 	case "get_conversation_history":
 		sender, _ := args["sender_email"].(string)
-		// JSON-Zahlen kommen in Go oft als float64 an:
 		countFloat, _ := args["count"].(float64)
 		count := int(countFloat)
 		if count == 0 {
 			count = 3 // Fallback
 		}
-		return executeGetConversationHistory(client, sender, count)
+		toolResult = executeGetConversationHistory(imapClient, sender, count)
 
-	case "search_knowledge_base":
-		query, _ := args["doc"].(string)
-		return executeSearchDocs(cfg, query)
+	case "search_docs":
+		query, _ := args["doc_name"].(string)
+		toolResult = executeSearchDocs(cfg, query)
 
-	case "list_docs":
-		return executeListDocs(cfg)
+	case "list_all_docs":
+		toolResult = executeListDocs(cfg)
 
 	case "read_memory":
-		return executeReadMemory(cfg)
+		toolResult = executeReadMemory(cfg)
 
 	case "write_memory":
 		fact, _ := args["fact"].(string)
-		return executeSaveMemory(fact, cfg)
+		toolResult = executeSaveMemory(fact, cfg)
 
 	default:
-		return fmt.Sprintf("Fehler: Unbekanntes Tool %s", toolName)
+		toolResult = fmt.Sprintf("Fehler: Unbekanntes Tool %s", toolName)
 	}
+
+	return toolResult, nil
 }

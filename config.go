@@ -17,6 +17,7 @@ type SysPromtsConfig struct {
 	Standard string `json:"STANDARD"`
 	Important string `json:"IMPORTANT"`
 	Classify string `json:"CLASSIFY"`
+	CLI string `json:"CLI"`
 }
 
 type ProgramConfig struct {
@@ -25,6 +26,7 @@ type ProgramConfig struct {
 	MemoryFile string `json:"memoryFile"`
 	MemoryCompressPromt string `json:"MemoryCompressPromt"`
 	KnowledgeDir string `json:"KnowledgeDir"`
+	CLISecretKey string `json:"CLISecretKey"`
 	SysPromts SysPromtsConfig `json:"sysPromts"`
 }
 

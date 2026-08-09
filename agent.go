@@ -78,7 +78,7 @@ func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Confi
 		Content: userContent,
 	})
 
-	allTools := buildAllTools(true)
+	allTools := buildAllTools()
 
 	result, err := runAgentLoop(imapClient, ctx, cfg, messages, allTools)
 	return result, err
@@ -109,58 +109,17 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 		if err != nil {
 			return "", fmt.Errorf("Fehler im Chat: %w", err)
 		}
-		fmt.Printf("-> [Turn %d] Sendefehler-Check | Messages im Context: %d\n", turn, len(messages))
+
+		if len(responseMessage.ToolCalls) == 0 {
+			return responseMessage.Content, nil
+		}
 
 		messages = append(messages, responseMessage)
 
 		for _, toolCall := range responseMessage.ToolCalls {
-			toolName := toolCall.Function.Name
-			args := toolCall.Function.Arguments.ToMap()
-
-			fmt.Printf("-> Agent ruft Tool auf: %s\n", toolName)
-
-			if toolName == "finish_and_reply" {
-				draftBody, _ := toolCall.Function.Arguments.ToMap()["draft_body"].(string)
-				notes, _ := args["notes"].(string)
-
-				fmt.Printf("-> [Agent Reasoning/Notes]: %s\n", notes)
-				fmt.Println("-> Agent beendet Recherche & erstellt Entwurf.")
-				return draftBody, nil // Beendet den Loop und gibt den E-Mail-Text zurück!
-			}
-
-			// NORMALE TOOLS AUSFÜHREN
-			var toolResult string
-			switch toolName {
-
-			case "search_inbox":
-				query, _ := args["query"].(string)
-				toolResult = executeSearchInbox(imapClient, query)
-
-			case "get_conversation_history":
-				sender, _ := args["sender_email"].(string)
-				countFloat, _ := args["count"].(float64)
-				count := int(countFloat)
-				if count == 0 {
-					count = 3 // Fallback
-				}
-				toolResult = executeGetConversationHistory(imapClient, sender, count)
-
-			case "search_docs":
-				query, _ := args["doc_name"].(string)
-				toolResult = executeSearchDocs(cfg, query)
-
-			case "list_all_docs":
-				toolResult = executeListDocs(cfg)
-
-			case "read_memory":
-				toolResult = executeReadMemory(cfg)
-
-			case "write_memory":
-				fact, _ := args["fact"].(string)
-				toolResult = executeSaveMemory(fact, cfg)
-
-			default:
-				toolResult = fmt.Sprintf("Fehler: Unbekanntes Tool %s", toolName)
+			toolResult, err := executeToolCalls(toolCall, imapClient, cfg)
+			if err != nil {
+				return toolResult, nil
 			}
 
 			// 3. Das Ergebnis des Tools zurück an das LLM übergeben!
