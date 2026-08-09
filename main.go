@@ -19,6 +19,7 @@ func main() {
 
 	StartMemoryCompressor(ctx, cfg) // No Config Problems
 	go startCLIServer(ctx, cfg)
+	go startMonitorServer()
 	MailSection(ctx, cfg) // No Config Problems
 
 	fmt.Println("-> Exiting")

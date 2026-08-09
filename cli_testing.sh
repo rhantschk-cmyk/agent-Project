@@ -1,14 +1,18 @@
 #!/bin/bash
 
 # Konfiguration
-URL="http://localhost:8080/api/agent/ask"
-KEY="abcdefgh"
-PROMPT="Gibt es offene Anfragen zum Thema Tennis4One?"
+URL="http://localhost:9000/api/stats"
 
-# JSON-Payload erstellen und Anfrage senden
-curl -s -X POST "$URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "verify_key": "'"$KEY"'",
-    "prompt": "'"$PROMPT"'"
-  }' | jq .
+echo "-> Schicke Anfrage an Monitoring-Server auf Port 9000..."
+
+# Anfrage mit curl senden
+RESPONSE=$(curl -s -X GET "$URL")
+
+# Prüfen, ob eine Antwort kam
+if [ -z "$RESPONSE" ]; then
+  echo "❌ Fehler: Keinen Antwort vom Monitoring-Server erhalten (läuft der Server?)."
+  exit 1
+fi
+
+echo "-> Antwort erhalten:"
+echo "$RESPONSE" | jq .
