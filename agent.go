@@ -117,6 +117,7 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 		messages = append(messages, responseMessage)
 
 		for _, toolCall := range responseMessage.ToolCalls {
+			CallID := toolCall.ID
 			toolResult, err := executeToolCalls(toolCall, imapClient, cfg)
 			if err != nil {
 				return toolResult, nil
@@ -126,6 +127,7 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 			messages = append(messages, api.Message{
 				Role:    "tool",
 				Content: toolResult,
+				ToolCallID: CallID,
 			})
 		}
 	}
@@ -201,7 +203,7 @@ func executeGetConversationHistory(client *imapclient.Client, sender string, cou
 
 func executeSearchDocs(cfg *Config, query string) string {
 	fmt.Printf("-> [Tool] Searching Knowledge Base for: %s\n", query)
-	content, err := os.ReadFile(filepath.Join(cfg.Program.KnowledgeDir, fmt.Sprintf(query, ".md")))
+	content, err := os.ReadFile(filepath.Join(cfg.Program.KnowledgeDir, fmt.Sprintf("%s.md", query)))
 	if err != nil {
 		return "Could not read file"
 	}
