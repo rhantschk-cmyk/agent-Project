@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/emersion/go-imap/v2/imapclient"
@@ -25,16 +26,25 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Nur POST erlaubt", http.StatusMethodNotAllowed)
-			fmt.Println("-> [CLI] Stopped Connection to Client")
+			fmt.Println("-> [CLI] Stopped Connection to Client: Method Error")
 			return
 		}
 
+		// Liest den rohen Text aus dem Request
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			fmt.Printf("-> [CLI] Fehler beim Lesen des Body: %v\n", err)
+		}
+
+		fmt.Printf("-> [CLI] Empfangener Raw-Body (%d Bytes): %q\n", len(bodyBytes), string(bodyBytes))
+
 		var req AgentRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			fmt.Printf("-> [CLI] JSON Unmarshal Fehler: %v\n", err) // <--- Zeigt den genauen Syntaxfehler!
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(AgentResponse{Error: "Ungültiges JSON-Format"})
-			fmt.Println("-> [CLI] Stopped Connection to Client")
+			fmt.Println("-> [CLI] Stopped Connection to Client: JSON Error")
 			return
 		}
 
@@ -42,7 +52,7 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(AgentResponse{Error: "Ungültiger oder fehlender VerifyKey"})
-			fmt.Println("-> [CLI] Stopped Connection to Client")
+			fmt.Println("-> [CLI] Stopped Connection to Client: Wronk Key")
 			return
 		}
 
@@ -51,11 +61,11 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 		allTools := buildAllTools()
 		messages := []api.Message{
 			{
-				Role: "system",
+				Role:    "system",
 				Content: cfg.SysPromts.CLI,
 			},
 			{
-				Role: "user",
+				Role:    "user",
 				Content: req.Prompt,
 			},
 		}
@@ -66,7 +76,7 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(AgentResponse{Error: err.Error()})
-			fmt.Println("-> [CLI] Stopped Connection to Client")
+			fmt.Println("-> [CLI] Stopped Connection to Client: Agent Error")
 			return
 		}
 
