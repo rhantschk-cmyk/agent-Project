@@ -13,24 +13,25 @@ import (
 
 var memoryMutex sync.Mutex
 
-
 // Tools
 
 func executeSaveMemory(fact string, cfg *Config) string {
-	fmt.Println("-> [Tool] Saving fact in Memory:", fact)
+	logf("-> [Tool] Saving fact in Memory: %s", fact)
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
 	f, err := os.OpenFile(cfg.Memory.MemoryFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		logf("-> Error while opening Memory-File: %v", err)
 		return "Error while opening Memory-File"
 	}
 	defer f.Close()
-	
+
 	timestamp := time.Now().Format("2006-01-02 15:04")
 	entry := fmt.Sprintf("[%s] %s\n", timestamp, fact)
 
 	if _, err := f.WriteString(entry); err != nil {
+		logf("-> Error while writing Memory-File: %v", err)
 		return "Error while writing Memory-File"
 	}
 
@@ -38,12 +39,13 @@ func executeSaveMemory(fact string, cfg *Config) string {
 }
 
 func executeReadMemory(cfg *Config) string {
-	fmt.Println("-> [Tool] Reading Memory")
+	logf("-> [Tool] Reading Memory")
 	memoryMutex.Lock()
 	defer memoryMutex.Unlock()
 
 	content, err := os.ReadFile(cfg.Memory.MemoryFile)
 	if err != nil || len(content) == 0 {
+		logf("-> Memory File is empty or unreadable: %v", err)
 		return "Memory File is empty"
 	}
 
@@ -51,16 +53,17 @@ func executeReadMemory(cfg *Config) string {
 }
 
 func StartMemoryCompressor(ctx context.Context, cfg *Config) {
-	fmt.Println("-> [Memory] Started Memory Compressor")
+	logf("-> [Memory] Started Memory Compressor")
 	ticker := time.NewTicker(time.Duration(cfg.Memory.MemoryCompressionTime) * time.Minute)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Println("-> [Memory] Compressing...")
+				logf("-> [Memory] Compressing...")
 				compressMemory(ctx, cfg)
-				fmt.Println("-> [Memory] Done")
+				logf("-> [Memory] Done")
 			case <-ctx.Done():
+				logf("-> [Memory] Compressor stopped")
 				return
 			}
 		}
@@ -76,22 +79,24 @@ func compressMemory(ctx context.Context, cfg *Config) {
 		return
 	}
 
-	fmt.Println("-> [Memory] Compressing Memory File...")
+	logf("-> [Memory] Compressing Memory File...")
 
 	ollamaClient, err := api.ClientFromEnvironment()
 	if err != nil {
+		logf("-> [Memory] WARN: Ollama not reachable, skipping compression: %v", err)
 		return
 	}
 
 	prompt := cfg.Memory.MemoryCompressPromt + string(content)
 
+	stream := false
 	req := &api.ChatRequest{
 		Model: cfg.Program.Model,
 		Messages: []api.Message{
 			{Role: "system", Content: "Du bist ein Präzisions-System zur Zusammenfassung von Notizen. Antworte NUR mit den stichpunktartigen Fakten."},
 			{Role: "user", Content: prompt},
 		},
-		Stream: new(bool),
+		Stream: &stream,
 	}
 
 	var compressedText string
@@ -100,8 +105,16 @@ func compressMemory(ctx context.Context, cfg *Config) {
 		return nil
 	})
 
-	if err == nil && strings.TrimSpace(compressedText) != "" {
-		_ = os.WriteFile(cfg.Memory.MemoryFile, []byte(compressedText+"\n"), 0644)
-		fmt.Println("-> [Memory] Memory erfolgreich komprimiert!")
+	if err != nil {
+		logf("-> [Memory] Compression failed, keeping file unchanged: %v", err)
+		return
+	}
+
+	if strings.TrimSpace(compressedText) != "" {
+		if err := os.WriteFile(cfg.Memory.MemoryFile, []byte(compressedText+"\n"), 0644); err != nil {
+			logf("-> [Memory] Could not write compressed memory: %v", err)
+			return
+		}
+		logf("-> [Memory] Memory erfolgreich komprimiert!")
 	}
 }

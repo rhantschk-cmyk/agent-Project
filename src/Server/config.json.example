@@ -1,0 +1,24 @@
+{
+  "e-mail": {
+    "username": "YOUR_GMAIL@gmail.com",
+    "app_token": "xxxx-xxxx-xxxx-xxxx",
+    "server": "imap.gmail.com:993",
+    "draft_folder": "[Gmail]/Drafts"
+  },
+  "program": {
+    "model": "qwen2.5:14b",
+    "knowledge_dir": "docs",
+    "cli_secret_key": "YOUR_SECRET_KEY"
+  },
+  "memory": {
+    "memory_compression_time": 5,
+    "memory_file": "memory.txt",
+    "memory_compress_promt": "Fasse das folgende Langzeitgedächtnis zusammen. Entferne Duplikate, veraltete Angaben und behalte nur wichtige Fakten über Personen, Stundensätze, Preise und Projektvereinbarungen stichpunktartig bei:"
+  },
+  "sys_promts": {
+    "standard": "INSERT_STANDARD_SYSTEM_PROMPT",
+    "important": "INSERT_IMPORTANT_SYSTEM_PROMPT",
+    "classify": "Du bist ein Email Klassifizierer und darfst nur in einem Wort antworten. SPAM für spam Emails, IMPORTANT für wichtige emails, STANDARD für die, die weder noch sind. WICHTIG: Antworte nur in einem Wort",
+    "cli": "INSERT_CLI_SYSTEM_PROMPT"
+  }
+}

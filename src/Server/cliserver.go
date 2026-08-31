@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/ollama/ollama/api"
@@ -21,30 +22,38 @@ type AgentResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
+type HealthResponse struct {
+	Status  string `json:"status"`
+	Version string `json:"version"`
+	Uptime  string `json:"uptime"`
+}
+
+var startTime = time.Now()
+
 func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Context) http.HandlerFunc {
-	fmt.Println("-> [CLI] New Request")
+	logf("-> [CLI] New Request")
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Nur POST erlaubt", http.StatusMethodNotAllowed)
-			fmt.Println("-> [CLI] Stopped Connection to Client: Method Error")
+			logf("-> [CLI] Stopped Connection to Client: Method Error")
 			return
 		}
 
 		// Liest den rohen Text aus dem Request
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			fmt.Printf("-> [CLI] Fehler beim Lesen des Body: %v\n", err)
+			logf("-> [CLI] Fehler beim Lesen des Body: %v", err)
 		}
 
-		fmt.Printf("-> [CLI] Empfangener Raw-Body (%d Bytes): %q\n", len(bodyBytes), string(bodyBytes))
+		logf("-> [CLI] Empfangener Raw-Body (%d Bytes): %q", len(bodyBytes), string(bodyBytes))
 
 		var req AgentRequest
 		if err := json.Unmarshal(bodyBytes, &req); err != nil {
-			fmt.Printf("-> [CLI] JSON Unmarshal Fehler: %v\n", err) // <--- Zeigt den genauen Syntaxfehler!
+			logf("-> [CLI] JSON Unmarshal Fehler: %v", err) // <--- Zeigt den genauen Syntaxfehler!
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(AgentResponse{Error: "Ungültiges JSON-Format"})
-			fmt.Println("-> [CLI] Stopped Connection to Client: JSON Error")
+			logf("-> [CLI] Stopped Connection to Client: JSON Error")
 			return
 		}
 
@@ -52,11 +61,11 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(AgentResponse{Error: "Ungültiger oder fehlender VerifyKey"})
-			fmt.Println("-> [CLI] Stopped Connection to Client: Wronk Key")
+			logf("-> [CLI] Stopped Connection to Client: Wrong Key")
 			return
 		}
 
-		fmt.Println("-> [CLI] Client Verified")
+		logf("-> [CLI] Client Verified")
 
 		allTools := buildAllTools()
 		messages := []api.Message{
@@ -70,32 +79,62 @@ func handleAgentAsk(cfg *Config, imapClient *imapclient.Client, ctx context.Cont
 			},
 		}
 
-		fmt.Println("-> [CLI] Starting Agent Loop")
+		logf("-> [CLI] Starting Agent Loop")
 		agentAnswer, err := runAgentLoop(imapClient, ctx, cfg, messages, allTools)
 		if err != nil {
+			logf("-> [CLI] Agent Error: %v", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(AgentResponse{Error: err.Error()})
-			fmt.Println("-> [CLI] Stopped Connection to Client: Agent Error")
+			logf("-> [CLI] Stopped Connection to Client: Agent Error")
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(AgentResponse{Response: agentAnswer})
-		fmt.Println("-> [CLI] Done")
+		logf("-> [CLI] Done")
+	}
+}
+
+func handleAgentHealth() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		d := time.Since(startTime)
+		json.NewEncoder(w).Encode(HealthResponse{
+			Status:  "ok",
+			Version: version,
+			Uptime:  fmt.Sprintf("%dd %dh %dm", int(d.Hours())/24, int(d.Hours())%24, int(d.Minutes())%60),
+		})
 	}
 }
 
 func startCLIServer(ctx context.Context, cfg *Config) {
-	fmt.Println("-> [CLI] Erstelle eigenen Client")
+	logf("-> [CLI] Erstelle eigenen Client")
 	imapClient, _, err := setUpMail(cfg)
 	if err != nil {
-		fmt.Println("-> [CLI] FATAL: Konnte Client nicht erstellen, Email-tools nicht brauchbar")
+		logf("-> [CLI] WARN: Konnte Client nicht erstellen, Email-tools nicht brauchbar: %v", err)
 	}
-	fmt.Println("-> [CLI] Success")
-	fmt.Println("-> [CLI] Starte Server")
-	http.HandleFunc("/api/agent/ask", handleAgentAsk(cfg, imapClient, ctx))
-	fmt.Println("-> [CLI] Done")
-	fmt.Println("-> [CLI] Starting Listening")
-	http.ListenAndServe(":8080", nil)
+	logf("-> [CLI] Success")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/agent/ask", handleAgentAsk(cfg, imapClient, ctx))
+	mux.HandleFunc("/health", handleAgentHealth())
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	logf("-> [CLI] Starte Server auf :8080")
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logf("-> [CLI] Server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	logf("-> [CLI] Shutdown signal, closing HTTP server")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = server.Shutdown(shutdownCtx)
 }

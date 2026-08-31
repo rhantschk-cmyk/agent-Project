@@ -24,13 +24,13 @@ type ParsedEmail struct {
 }
 
 func toMail(mail ParsedEmail) bytes.Buffer {
-	// Converting Struct to Buffer 
+	// Converting Struct to Buffer
 	var mailBuffer bytes.Buffer
 	sender_line := "From:" + mail.From + "\r\n"
 	receiver_line := "To:" + mail.To + "\r\n"
 	subject_line := "Subject: [ENTWURF]" + mail.Subject + "\r\n"
 	content_definition := "Content-Type: text/plain; charset=UTF-8\r\n"
-	
+
 	mailBuffer.WriteString(sender_line)
 	mailBuffer.WriteString(receiver_line)
 	mailBuffer.WriteString(subject_line)
@@ -42,7 +42,7 @@ func toMail(mail ParsedEmail) bytes.Buffer {
 }
 
 func setUpMail(cfg *Config) (*imapclient.Client, chan uint32, error) {
-	fmt.Println("-> Setting Up Mail connection")
+	logf("-> Setting Up Mail connection")
 	// Setting up Channel to make things work when the function ends (new mails spawn in this channel)
 	newMailChan := make(chan uint32, 100)
 
@@ -51,7 +51,7 @@ func setUpMail(cfg *Config) (*imapclient.Client, chan uint32, error) {
 		UnilateralDataHandler: &imapclient.UnilateralDataHandler{
 			Mailbox: func(data *imapclient.UnilateralDataMailbox) {
 				if data.NumMessages != nil {
-					fmt.Printf("-> Neue Mail erkannt")
+					logf("-> Neue Mail erkannt: %d", *data.NumMessages)
 					newMailChan <- uint32(*data.NumMessages)
 				}
 			},
@@ -61,18 +61,18 @@ func setUpMail(cfg *Config) (*imapclient.Client, chan uint32, error) {
 	// Setting up client with options
 	client, err := imapclient.DialTLS(cfg.Email.Server, options)
 	if err != nil {
-		return nil, nil, err 
+		return nil, nil, err
 	}
 
-	// Loging in 
+	// Loging in
 	// and selecting Inbox as place where to look
 	// for new mails
 	if err := client.Login(cfg.Email.Username, cfg.Email.AppToken).Wait(); err != nil {
-		return nil, nil, err 
+		return nil, nil, err
 	}
 
-	_ = client.Select("INBOX", nil) 
-	fmt.Println("-> Success")
+	_ = client.Select("INBOX", nil)
+	logf("-> Success")
 
 	return client, newMailChan, nil
 
@@ -81,49 +81,73 @@ func setUpMail(cfg *Config) (*imapclient.Client, chan uint32, error) {
 func MailSection(ctx context.Context, cfg *Config) {
 	client, newMailChan, err := setUpMail(cfg) // No Config Problems
 	if err != nil {
-		fmt.Println("-> Error while Setting up:", err)
+		logf("-> Error while Setting up: %v", err)
+		return
 	}
 	defer client.Close()
 
-	fmt.Println("-> Starting Email Section")
-	fmt.Println("-> Listening for Emails")
+	logf("-> Starting Email Section")
+	logf("-> Listening for Emails")
 
 	for {
-		idleCmd, err := client.Idle()
-		if err != nil {
-			fmt.Println("-> Error while starting IDLE: ", err)
-		}
-		seqNum, ok := <-newMailChan
-		if !ok {
-			fmt.Println("-> FATAL: Channel closed unexpectedly")
-			break
+		// Start IDLE in a goroutine so we can also react to shutdown signals.
+		idleCmd, idleErr := client.Idle()
+		if idleErr != nil {
+			logf("-> Error while starting IDLE: %v", idleErr)
+			// avoid a busy loop if the connection is broken
+			select {
+			case <-ctx.Done():
+				logf("-> MailSection: shutdown signal received, stopping")
+				return
+			case <-time.After(2 * time.Second):
+				continue
+			}
 		}
 
-		if err := idleCmd.Close(); err != nil {
-			fmt.Println("-> Error while closing IDLE: ", err)
-		}
+		select {
+		case <-ctx.Done():
+			logf("-> MailSection: shutdown signal received, stopping")
+			if idleCmd != nil {
+				_ = idleCmd.Close()
+			}
+			return
+		case seqNum, ok := <-newMailChan:
+			if !ok {
+				logf("-> FATAL: Channel closed unexpectedly")
+				if idleCmd != nil {
+					_ = idleCmd.Close()
+				}
+				return
+			}
+			if idleCmd != nil {
+				if err := idleCmd.Close(); err != nil {
+					logf("-> Error while closing IDLE: %v", err)
+				}
+			}
 
-		mail, err := fetchEmailDetails(client, seqNum)
-		if err != nil {
-			fmt.Println("-> Error while getting Mail: ", err)
-		} else {
+			mail, err := fetchEmailDetails(client, seqNum)
+			if err != nil {
+				logf("-> Error while getting Mail: %v", err)
+				continue
+			}
 			category, err := classifyMail(mail, ctx, cfg) // No Config Problems
 			if err != nil {
-				fmt.Println("-> Error while Classifying: ", err)
+				logf("-> Error while Classifying: %v", err)
+				continue
 			}
-			fmt.Println("-> Category", category)
+			logf("-> Category: %s", category)
 			response, err := respondEmail(client, ctx, cfg, mail, category) // No Config Problems
-			fmt.Println("-> Model Created Draft with:", response)
+			logf("-> Model Created Draft with: %s", response)
 			if err != nil {
-				fmt.Println("-> Error while responding: ", err)
+				logf("-> Error while responding: %v", err)
 			}
 		}
 	}
 }
 
 func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, error) {
-	fmt.Println("-> Fetching Mail")
-	
+	logf("-> Fetching Mail")
+
 	// Converting email to struct
 	// (written by Gemini)
 	bodySection := &imap.FetchItemBodySection{}
@@ -172,49 +196,50 @@ func fetchEmailDetails(client *imapclient.Client, seqNum uint32) (*ParsedEmail, 
 		}
 	}
 
-	fmt.Println("-> Done")
+	logf("-> Done")
 	return parsed, nil
 }
 
-
 func classifyMail(mail *ParsedEmail, ctx context.Context, cfg *Config) (string, error) {
-	fmt.Println("-> Classifying Email")
-	// Ask Agent without tools to classify Email 
+	logf("-> Classifying Email")
+	// Ask Agent without tools to classify Email
 	// (no memory)
 	response, err := askAgentNoTools(ctx, cfg, mail.Body) // No Config Problems
 	if err != nil {
-		return "", err 
+		return "", err
 	}
-	fmt.Println("-> Done")
+	logf("-> Done")
 	return response, nil
 }
 
-
 func respondEmail(client *imapclient.Client, ctx context.Context, cfg *Config, mail *ParsedEmail, category string) (string, error) {
 	rawBody, err := generateMail(client, ctx, cfg, mail, category) // No Config Problems
-	finalBody := strings.ReplaceAll(rawBody, `\n`, "\n")
 	if err != nil {
 		return "", err
 	}
+	finalBody := strings.ReplaceAll(rawBody, `\n`, "\n")
 	// Creating struct then converting to email
-	mail_response_template := ParsedEmail {
-		UID: 0,
-		To: mail.From,
-		From: mail.To,
+	mail_response_template := ParsedEmail{
+		UID:     0,
+		To:      mail.From,
+		From:    mail.To,
 		Subject: "",
-		Body: finalBody,
-		Date: "",
+		Body:    finalBody,
+		Date:    "",
 	}
 	// Creating Draft
 	response := toMail(mail_response_template)
-	fmt.Println("-> Responding to Email")
-	createDraft(client, cfg, response) // No Config Problems
-	fmt.Println("-> Done")
+	logf("-> Responding to Email")
+	err = createDraft(client, cfg, response) // No Config Problems
+	if err != nil {
+		return "", err
+	}
+	logf("-> Done")
 	return finalBody, nil
 }
 
 func createDraft(client *imapclient.Client, cfg *Config, mail bytes.Buffer) error {
-	fmt.Println("-> Creating Draft")
+	logf("-> Creating Draft")
 	appendOptions := &imap.AppendOptions{
 		Time:  time.Now(),
 		Flags: []imap.Flag{imap.FlagDraft},
@@ -227,22 +252,22 @@ func createDraft(client *imapclient.Client, cfg *Config, mail bytes.Buffer) erro
 	cmd := client.Append(cfg.Email.DraftFolder, mailSize, appendOptions)
 
 	if _, err := io.Copy(cmd, mailReader); err != nil {
-		fmt.Println("-> Fehler beim Schreiben der Mail-Daten: ", err)
+		logf("-> Fehler beim Schreiben der Mail-Daten: %v", err)
 		cmd.Close()
 		return err
 	}
 
 	// IMPORTANT: close server
 	if err := cmd.Close(); err != nil {
-		fmt.Println("-> Fehler beim Schließen des Append-Streams: ", err)
+		logf("-> Fehler beim Schließen des Append-Streams: %v", err)
 		return err
 	}
 
 	if _, err := cmd.Wait(); err != nil {
-		fmt.Println("-> Fehler beim Erstellen des Entwurfs: ", err)
+		logf("-> Fehler beim Erstellen des Entwurfs: %v", err)
 		return err
 	}
 
-	fmt.Println("-> Entwurf erfolgreich erstellt!")
+	logf("-> Entwurf erfolgreich erstellt!")
 	return nil
 }

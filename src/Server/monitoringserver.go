@@ -13,26 +13,26 @@ import (
 )
 
 type SystemStats struct {
-	CPUUsagePercent		float64		`json:"cpu_usage_percent"`
-	RAMUsagePercent		float64		`json:"ram_usage_percent"`
-	RAMTotalMB			uint64		`json:"ram_total_mb"`
-	RAMUsedMB			uint64		`json:"ram_used_mb"`
-	DiskFreeGB			uint64		`json:"disk_free_gb"`
-	DiskTotalGB			uint64		`json:"disk_total_gb"`
-	UptimeSeconds		uint64		`json:"uptime_seconds"`
-	UptimeFormated		string		`json:"uptime_formated"`
-	GPUInfo				string		`json:"gpu_info"`
+	CPUUsagePercent float64 `json:"cpu_usage_percent"`
+	RAMUsagePercent float64 `json:"ram_usage_percent"`
+	RAMTotalMB      uint64  `json:"ram_total_mb"`
+	RAMUsedMB       uint64  `json:"ram_used_mb"`
+	DiskFreeGB      uint64  `json:"disk_free_gb"`
+	DiskTotalGB     uint64  `json:"disk_total_gb"`
+	UptimeSeconds   uint64  `json:"uptime_seconds"`
+	UptimeFormated  string  `json:"uptime_formated"`
+	GPUInfo         string  `json:"gpu_info"`
 }
 
 func getSystemStats() (SystemStats, error) {
 	var stats SystemStats
-	fmt.Println("-> [Monitoring] Fetching System Stats")
+	logf("-> [Monitoring] Fetching System Stats")
 
-	cpuPercents, err := cpu.Percent(200 * time.Millisecond, false)
+	cpuPercents, err := cpu.Percent(200*time.Millisecond, false)
 	if err == nil && len(cpuPercents) > 0 {
 		stats.CPUUsagePercent = cpuPercents[0]
 	}
-	fmt.Println("-> [Monitoring] Got CPU Percents")
+	logf("-> [Monitoring] Got CPU Percents")
 
 	vMem, err := mem.VirtualMemory()
 	if err == nil {
@@ -40,14 +40,14 @@ func getSystemStats() (SystemStats, error) {
 		stats.RAMTotalMB = vMem.Total / 1024 / 1024
 		stats.RAMUsedMB = vMem.Used / 1024 / 1024
 	}
-	fmt.Println("-> [Monitoring] Got RAM Info")
+	logf("-> [Monitoring] Got RAM Info")
 
 	diskUsage, err := disk.Usage("/")
 	if err == nil {
 		stats.DiskFreeGB = diskUsage.Free / 1024 / 1024 / 1024
 		stats.DiskTotalGB = diskUsage.Total / 1024 / 1024 / 1024
 	}
-	fmt.Println("-> [Monitoring] Got Disk Info")
+	logf("-> [Monitoring] Got Disk Info")
 
 	hostInfo, err := host.Info()
 	if err == nil {
@@ -55,17 +55,17 @@ func getSystemStats() (SystemStats, error) {
 		d := time.Duration(hostInfo.Uptime) * time.Second
 		stats.UptimeFormated = fmt.Sprintf("%dd %dh %dm", int(d.Hours())/24, int(d.Hours())%24, int(d.Minutes())%60)
 	}
-	fmt.Println("-> [Monitoring] Got Host Info")
+	logf("-> [Monitoring] Got Host Info")
 
 	stats.GPUInfo = "Derzeit noch nicht verfügbar"
-	fmt.Println("-> [Monitoring] Done")
+	logf("-> [Monitoring] Done")
 
 	return stats, nil
 }
 
-
 func startMonitorServer() {
-	http.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
 		stats, err := getSystemStats()
 		if err != nil {
 			http.Error(w, "Fehler beim Auslesen der Stats", http.StatusInternalServerError)
@@ -75,7 +75,13 @@ func startMonitorServer() {
 		json.NewEncoder(w).Encode(stats)
 	})
 
-	fmt.Println("-> [Monitoring] Starte Server auf :9000")
-	http.ListenAndServe(":9000", nil)
-}
+	server := &http.Server{
+		Addr:    ":9000",
+		Handler: mux,
+	}
 
+	logf("-> [Monitoring] Starte Server auf :9000")
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logf("-> [Monitoring] Server error: %v", err)
+	}
+}

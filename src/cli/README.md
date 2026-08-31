@@ -4,8 +4,9 @@ A server-side command-line tool for the **Agent Software** project, written in *
 
 ## Features
 
-- `check` — verify the repository structure and run Go analysis tools (`go vet`, `staticcheck`).
+- `check` — verify the repository structure and run Go analysis tools (`go vet`, `go test`, `staticcheck`).
 - `install` — launch the appropriate installer (server or desktop).
+- `uninstall` — launch the appropriate uninstaller (server or desktop).
 - `start` / `stop` / `restart` — control the `email-agent` systemd service.
 - `status` — show the service status.
 - `config` — display the current `config.json`.
@@ -17,6 +18,7 @@ A server-side command-line tool for the **Agent Software** project, written in *
 ```bash
 python3 agent-cli.py check
 python3 agent-cli.py install
+sudo python3 agent-cli.py uninstall
 sudo python3 agent-cli.py start
 sudo python3 agent-cli.py status
 python3 agent-cli.py config

@@ -1,1 +1,9 @@
 res/
+config.json
+config.local.json
+memory.txt
+*.log
+build/
+__pycache__/
+*.pyc
+agent-Projekt

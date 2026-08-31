@@ -109,6 +109,28 @@ The installer will:
 3. Create a **desktop shortcut**.
 4. Configure the `server_ip` and `verify_key` to point at your server.
 
+### Option D — Uninstall
+
+Both components can be fully removed back to a clean state:
+
+**Server (removes the systemd service, binary and `/etc/email-agent`):**
+
+```bash
+sudo python3 src/install/server_uninstaller.py
+```
+
+**Desktop (removes the app and the desktop shortcut):**
+
+```bash
+python src/install/desktop_uninstaller.py
+```
+
+Alternatively, use the CLI:
+
+```bash
+sudo agent-cli uninstall   # then pick server or desktop
+```
+
 ### Option C — Manual Build
 
 **Server:**
@@ -119,6 +141,12 @@ cp config.json.example config.json   # then edit your credentials
 go build -o email-agent .
 ./email-agent
 ```
+
+> ⚠️ **Important:** the server is a multi-file `package main`, so always build/run
+> the **whole package** — use `go build .` or `go run .` (with the dot).
+> Running `go run main.go` alone **will fail** with `undefined` errors, because the
+> other files (config, agent, mails, tools, memory, cliserver, monitoringserver,
+> logging) are not included.
 
 **Desktop client (Odin):**
 
@@ -179,7 +207,9 @@ Located in `src/cli/` and written in **Python**. It is a server-side command-lin
 └── src/
     ├── install/
     │   ├── server_installer.py      # systemd installer (Linux)
-    │   └── desktop_installer.py     # Windows desktop installer
+    │   ├── desktop_installer.py     # Windows desktop installer
+    │   ├── server_uninstaller.py    # removes the systemd service + files
+    │   └── desktop_uninstaller.py   # removes the desktop app + shortcut
     ├── cli/
     │   ├── agent-cli.py              # server-side CLI tool
     │   └── README.md

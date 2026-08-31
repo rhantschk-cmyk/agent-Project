@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,9 +13,8 @@ import (
 	"github.com/ollama/ollama/api"
 )
 
-
 func askAgentNoTools(ctx context.Context, cfg *Config, promt string) (string, error) {
-	fmt.Println("-> Asking Agent:", promt)
+	logf("-> Asking Agent: %s", promt)
 	// Setup Client Connection
 	client, err := api.ClientFromEnvironment()
 	if err != nil {
@@ -23,19 +23,20 @@ func askAgentNoTools(ctx context.Context, cfg *Config, promt string) (string, er
 	messages := []api.Message{}
 
 	messages = append(messages, api.Message{
-		Role: "system",
+		Role:    "system",
 		Content: cfg.SysPromts.Classify,
 	})
 
 	messages = append(messages, api.Message{
-		Role: "user",
+		Role:    "user",
 		Content: promt,
 	})
 
+	stream := false
 	req := &api.ChatRequest{
-		Model: cfg.Program.Model,
+		Model:    cfg.Program.Model,
 		Messages: messages,
-		Stream: new (bool),
+		Stream:   &stream,
 	}
 
 	var resp string
@@ -46,15 +47,16 @@ func askAgentNoTools(ctx context.Context, cfg *Config, promt string) (string, er
 		return nil
 	})
 	if err != nil {
+		logf("-> [Error] Ollama chat failed: %v", err)
 		return "", err
 	}
 
-	fmt.Println("-> Done")
+	logf("-> Done")
 	return resp, err
 }
 
 func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Config, mail *ParsedEmail, category string) (string, error) {
-	fmt.Println("-> Generating Email")
+	logf("-> Generating Email")
 	messages := []api.Message{}
 
 	var sysPrompt string
@@ -62,7 +64,7 @@ func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Confi
 	case "STANDARD":
 		sysPrompt = cfg.SysPromts.Standard
 	case "IMPORTANT":
-		sysPrompt = cfg.SysPromts.Important	
+		sysPrompt = cfg.SysPromts.Important
 	case "SPAM":
 		return "SPAM", nil
 	}
@@ -84,9 +86,10 @@ func generateMail(imapClient *imapclient.Client, ctx context.Context, cfg *Confi
 	return result, err
 }
 
-func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Config, initialMessages []api.Message, allTools api.Tools) (string, error) {
+func runAgentLoop(imapClient *imapclient.Client, ctx context.Context, cfg *Config, initialMessages []api.Message, allTools api.Tools) (string, error) {
 	ollamaClient, err := api.ClientFromEnvironment()
 	if err != nil {
+		logf("-> [Error] Ollama client setup failed: %v", err)
 		return "", err
 	}
 
@@ -94,11 +97,18 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 	maxTurns := 30 // Safety-Limit gegen Endlosschleifen
 
 	for turn := 0; turn < maxTurns; turn++ {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("agent loop cancelled by shutdown signal")
+		default:
+		}
+
+		stream := false
 		req := &api.ChatRequest{
 			Model:    cfg.Program.Model,
 			Messages: messages,
 			Tools:    allTools,
-			Stream:   new(bool),
+			Stream:   &stream,
 		}
 
 		var responseMessage api.Message
@@ -107,6 +117,7 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 			return nil
 		})
 		if err != nil {
+			logf("-> [Error] Chat failed: %v", err)
 			return "", fmt.Errorf("Fehler im Chat: %w", err)
 		}
 
@@ -120,24 +131,29 @@ func runAgentLoop(imapClient *imapclient.Client, ctx context.Context,  cfg *Conf
 			CallID := toolCall.ID
 			toolResult, err := executeToolCalls(toolCall, imapClient, cfg)
 			if err != nil {
-				return toolResult, nil
+				if errors.Is(err, errFinished) {
+					// finish_and_reply signal: return the final text as the agent result
+					return toolResult, nil
+				}
+				logf("-> [Error] Tool execution failed: %v", err)
+				return toolResult, err
 			}
 
 			// 3. Das Ergebnis des Tools zurück an das LLM übergeben!
 			messages = append(messages, api.Message{
-				Role:    "tool",
-				Content: toolResult,
+				Role:       "tool",
+				Content:    toolResult,
 				ToolCallID: CallID,
 			})
 		}
 	}
 
+	logf("-> [Error] Agent loop reached max turns (%d)", maxTurns)
 	return "", fmt.Errorf("Maximales Turn-Limit (%d) erreicht", maxTurns)
 }
 
-
 func executeSearchInbox(client *imapclient.Client, query string) string {
-	fmt.Printf("-> [Tool] Searching Inbox for: %s\n", query)
+	logf("-> [Tool] Searching Inbox for: %s", query)
 
 	// Suche nach Mails, die das Text-Muster im Body oder Subject enthalten
 	criteria := &imap.SearchCriteria{
@@ -148,6 +164,7 @@ func executeSearchInbox(client *imapclient.Client, query string) string {
 	searchCmd := client.Search(criteria, nil)
 	data, err := searchCmd.Wait()
 	if err != nil || len(data.AllSeqNums()) == 0 {
+		logf("-> [Tool] No inbox hits for query: %s", query)
 		return "Keine E-Mails zu diesem Suchbegriff gefunden."
 	}
 
@@ -169,8 +186,7 @@ func executeSearchInbox(client *imapclient.Client, query string) string {
 }
 
 func executeGetConversationHistory(client *imapclient.Client, sender string, count int) string {
-	fmt.Printf("-> [Tool] Getting last %d mails for: %s\n", count, sender)
-	fmt.Printf("-> [Tool] Fetching last %d mails from: %s\n", count, sender)
+	logf("-> [Tool] Getting last %d mails for: %s", count, sender)
 
 	criteria := &imap.SearchCriteria{
 		Header: []imap.SearchCriteriaHeaderField{
@@ -181,6 +197,7 @@ func executeGetConversationHistory(client *imapclient.Client, sender string, cou
 	searchCmd := client.Search(criteria, nil)
 	data, err := searchCmd.Wait()
 	if err != nil || len(data.AllSeqNums()) == 0 {
+		logf("-> [Tool] No conversation history for sender: %s", sender)
 		return "Keine bisherige Konversation mit diesem Absender gefunden."
 	}
 
@@ -202,18 +219,20 @@ func executeGetConversationHistory(client *imapclient.Client, sender string, cou
 }
 
 func executeSearchDocs(cfg *Config, query string) string {
-	fmt.Printf("-> [Tool] Searching Knowledge Base for: %s\n", query)
+	logf("-> [Tool] Searching Knowledge Base for: %s", query)
 	content, err := os.ReadFile(filepath.Join(cfg.Program.KnowledgeDir, fmt.Sprintf("%s.md", query)))
 	if err != nil {
+		logf("-> [Tool] Could not read doc: %s (%v)", query, err)
 		return "Could not read file"
 	}
 	return string(content)
 }
 
 func executeListDocs(cfg *Config) string {
-	fmt.Println("-> [Tool] Listing Docs")
+	logf("-> [Tool] Listing Docs")
 	entries, err := os.ReadDir(cfg.Program.KnowledgeDir)
 	if err != nil || len(entries) == 0 {
+		logf("-> [Tool] No knowledge files found")
 		return "No Knowledge Files found, nothing to list up"
 	}
 

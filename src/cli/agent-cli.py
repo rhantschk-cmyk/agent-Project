@@ -102,6 +102,10 @@ def cmd_check(args) -> int:
         print("\n=== go vet ===")
         if run_cmd(["go", "vet", "./..."], cwd=os.path.join("src", "Server")) != 0:
             code = 1
+
+        print("\n=== go test ===")
+        if run_cmd(["go", "test", "./..."], cwd=os.path.join("src", "Server")) != 0:
+            code = 1
     else:
         print("[SKIP] go.mod not found; run from repo root")
 
@@ -136,6 +140,23 @@ def cmd_install(args) -> int:
     return 1
 
 
+def cmd_uninstall(args) -> int:
+    print("=== Uninstaller ===")
+    print("Which component do you want to uninstall?")
+    print("  [1] Server (Linux / systemd)")
+    print("  [2] Desktop client (Windows)")
+    choice = input("Choice [1/2]: ").strip()
+    if choice == "1":
+        if not require_root():
+            return 1
+        return run_cmd([sys.executable, os.path.join("src", "install", "server_uninstaller.py")])
+    if choice == "2":
+        py = "python" if os.name == "nt" else sys.executable
+        return run_cmd([py, os.path.join("src", "install", "desktop_uninstaller.py")])
+    print_error("Invalid choice.")
+    return 1
+
+
 # ---------------------------------------------------------------------------
 # service control
 # ---------------------------------------------------------------------------
@@ -146,7 +167,7 @@ def cmd_service(action: str) -> int:
     return run_cmd(["systemctl", action, SERVICE_NAME])
 
 
-def cmd_status() -> int:
+def cmd_status(args=None) -> int:
     print("=== Service status ===")
     return run_cmd(["systemctl", "status", SERVICE_NAME, "--no-pager"])
 
@@ -155,7 +176,7 @@ def cmd_status() -> int:
 # config
 # ---------------------------------------------------------------------------
 
-def cmd_config() -> int:
+def cmd_config(args=None) -> int:
     for path in SERVER_CONFIG_PATHS:
         if os.path.exists(path):
             print(f"=== Config: {path} ===")
@@ -174,7 +195,7 @@ def cmd_config() -> int:
 # update
 # ---------------------------------------------------------------------------
 
-def cmd_update() -> int:
+def cmd_update(args=None) -> int:
     print("=== Update ===")
     if run_cmd(["git", "pull"]) != 0:
         return 1
@@ -227,6 +248,7 @@ def usage() -> None:
     print("USAGE:")
     print("  agent-cli check                 Run code checks (go vet, staticcheck, structure)")
     print("  agent-cli install               Launch the appropriate installer")
+    print("  agent-cli uninstall             Launch the appropriate uninstaller")
     print("  agent-cli start                 Start the email-agent service (systemd)")
     print("  agent-cli stop                  Stop the email-agent service (systemd)")
     print("  agent-cli restart               Restart the email-agent service (systemd)")
@@ -251,6 +273,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("check", help="Run code checks")
     sub.add_parser("install", help="Launch the installer")
+    sub.add_parser("uninstall", help="Launch the uninstaller")
     sub.add_parser("start", help="Start the service")
     sub.add_parser("stop", help="Stop the service")
     sub.add_parser("restart", help="Restart the service")
@@ -275,6 +298,7 @@ def main() -> int:
     handlers = {
         "check": cmd_check,
         "install": cmd_install,
+        "uninstall": cmd_uninstall,
         "start": lambda a: cmd_service("start"),
         "stop": lambda a: cmd_service("stop"),
         "restart": lambda a: cmd_service("restart"),

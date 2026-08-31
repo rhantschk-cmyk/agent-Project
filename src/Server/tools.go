@@ -7,16 +7,16 @@ import (
 	"github.com/ollama/ollama/api"
 )
 
-//Structs to fill up when creating tool
+// Structs to fill up when creating tool
 type Property struct {
-	Name		string
-	Category	string
-	Description	string
+	Name        string
+	Category    string
+	Description string
 }
 
 type Tool struct {
-	Name		string 
-	Description	string 
+	Name        string
+	Description string
 }
 
 func build_tool(all_properties []Property, target_tool Tool) api.Tool {
@@ -25,19 +25,19 @@ func build_tool(all_properties []Property, target_tool Tool) api.Tool {
 	requiredList := []string{}
 	for _, prop := range all_properties {
 		props.Set(prop.Name, api.ToolProperty{
-			Type: api.PropertyType{prop.Category},
+			Type:        api.PropertyType{prop.Category},
 			Description: prop.Description,
 		})
 		requiredList = append(requiredList, prop.Name)
 	}
 
-	tool := api.Tool {
+	tool := api.Tool{
 		Type: "function",
-		Function: api.ToolFunction {
-			Name: target_tool.Name,
+		Function: api.ToolFunction{
+			Name:        target_tool.Name,
 			Description: target_tool.Description,
 			Parameters: api.ToolFunctionParameters{
-				Type: "object",
+				Type:       "object",
 				Properties: props,
 				Required:   requiredList,
 			},
@@ -51,13 +51,13 @@ func buildAllTools() api.Tools {
 	// 1. search_inbox(query string)
 	searchInboxProps := []Property{}
 	searchInboxProps = append(searchInboxProps, Property{
-		Name: "query",
-		Category: "string",
+		Name:        "query",
+		Category:    "string",
 		Description: "String to search for in the Inbox",
 	})
 
-	searchInboxTool := Tool {
-		Name: "search_inbox",
+	searchInboxTool := Tool{
+		Name:        "search_inbox",
 		Description: "Searches the whole inbox after mails by the given string",
 	}
 
@@ -114,7 +114,7 @@ func buildAllTools() api.Tools {
 	readMemoryProps := []Property{}
 
 	readMemoryTool := Tool{
-		Name: 		"read_memory",
+		Name:        "read_memory",
 		Description: "Lists the content of the Memory-File",
 	}
 
@@ -123,14 +123,14 @@ func buildAllTools() api.Tools {
 	// 6. write_memory(fact string)
 	writeMemoryProps := []Property{
 		{
-			Name: "fact",
-			Category: "string",
+			Name:        "fact",
+			Category:    "string",
 			Description: "The fact to save in the Memory File",
 		},
 	}
 
 	writeMemoryTool := Tool{
-		Name: "write_memory",
+		Name:        "write_memory",
 		Description: "Writes a fact to the Memory File",
 	}
 
@@ -149,15 +149,15 @@ func buildAllTools() api.Tools {
 			Description: "Internal reasoning or notes explaining why this response was generated (e.g., 'Used price list from AGB.pdf')",
 		},
 	}
-	
+
 	finishAndReplyTool := Tool{
 		Name:        "finish_and_reply",
 		Description: "Finishes the agent loop and uses the response for creating an Email Draft or just answering the User. Depends on the Situation",
 	}
-	
+
 	finishAndReply := build_tool(finishAndReplyProps, finishAndReplyTool)
-	
-	return api.Tools {
+
+	return api.Tools{
 		searchInbox,
 		getConversationHistory,
 		searchDocs,
@@ -168,20 +168,23 @@ func buildAllTools() api.Tools {
 	}
 }
 
+// errFinished signals that the agent called finish_and_reply and the loop
+// should terminate, returning the provided response as the final text.
+var errFinished = fmt.Errorf("finished")
 
 func executeToolCalls(toolCall api.ToolCall, imapClient *imapclient.Client, cfg *Config) (string, error) {
 	toolName := toolCall.Function.Name
 	args := toolCall.Function.Arguments.ToMap()
 
-	fmt.Printf("-> Agent ruft Tool auf: %s\n", toolName)
+	logf("-> Agent ruft Tool auf: %s", toolName)
 
 	if toolName == "finish_and_reply" {
 		response, _ := toolCall.Function.Arguments.ToMap()["response"].(string)
 		notes, _ := args["notes"].(string)
 
-		fmt.Printf("-> [Agent Reasoning/Notes]: %s\n", notes)
-		fmt.Println("-> Agent beendet Recherche & erstellt Entwurf.")
-		return response, fmt.Errorf("Finished") // Beendet den Loop und gibt den E-Mail-Text zurück!
+		logf("-> [Agent Reasoning/Notes]: %s", notes)
+		logf("-> Agent beendet Recherche & erstellt Entwurf.")
+		return response, errFinished
 	}
 
 	// NORMALE TOOLS AUSFÜHREN
