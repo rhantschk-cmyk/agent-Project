@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Agent Software — CLI tool (server-side)
+VaultAgent — CLI tool (server-side)
 
 A command-line tool to check code, install/manage the systemd service,
 inspect config, update the software and query the running agent.
@@ -8,9 +8,9 @@ inspect config, update the software and query the running agent.
 Usage:
     agent-cli check                 Run code checks (go vet, staticcheck, structure)
     agent-cli install               Launch the appropriate installer
-    agent-cli start                 Start the email-agent service (systemd)
-    agent-cli stop                  Stop the email-agent service (systemd)
-    agent-cli restart               Restart the email-agent service (systemd)
+    agent-cli start                 Start the vaultagent service (systemd)
+    agent-cli stop                  Stop the vaultagent service (systemd)
+    agent-cli restart               Restart the vaultagent service (systemd)
     agent-cli status                Show service status
     agent-cli config                Show the current configuration
     agent-cli update                Pull latest code and rebuild
@@ -27,17 +27,17 @@ import argparse
 
 VERSION = "0.4 (Standard)"
 REPO_URL = "https://github.com/rhantschk-cmyk/agent-Project"
-SERVICE_NAME = "email-agent"
+SERVICE_NAME = "vaultagent"
 
 CLIENT_CONFIG_REL = os.path.join("src", "Client", "config.json")
 SERVER_CONFIG_PATHS = [
     os.path.join("src", "Server", "config.json"),
-    os.path.join(os.sep, "etc", "email-agent", "config.json"),
+    os.path.join(os.sep, "etc", "vaultagent", "config.json"),
 ]
 
 
 def banner() -> None:
-    print(f"Agent Software CLI v{VERSION} ({REPO_URL})")
+    print(f"VaultAgent CLI v{VERSION} ({REPO_URL})")
 
 
 def print_error(msg: str) -> None:
@@ -201,7 +201,7 @@ def cmd_update(args=None) -> int:
         return 1
     print("\nRebuilding server binary...")
     code = run_cmd(
-        ["go", "build", "-o", "/usr/local/bin/email-agent", "."],
+        ["go", "build", "-o", "/usr/local/bin/vaultagent", "."],
         cwd=os.path.join("src", "Server"),
     )
     print("Restart the service to apply: agent-cli restart")
@@ -249,9 +249,9 @@ def usage() -> None:
     print("  agent-cli check                 Run code checks (go vet, staticcheck, structure)")
     print("  agent-cli install               Launch the appropriate installer")
     print("  agent-cli uninstall             Launch the appropriate uninstaller")
-    print("  agent-cli start                 Start the email-agent service (systemd)")
-    print("  agent-cli stop                  Stop the email-agent service (systemd)")
-    print("  agent-cli restart               Restart the email-agent service (systemd)")
+    print("  agent-cli start                 Start the vaultagent service (systemd)")
+    print("  agent-cli stop                  Stop the vaultagent service (systemd)")
+    print("  agent-cli restart               Restart the vaultagent service (systemd)")
     print("  agent-cli status                Show service status")
     print("  agent-cli config                Show the current configuration")
     print("  agent-cli update                Pull latest code and rebuild")
@@ -264,7 +264,7 @@ def usage() -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="agent-cli",
-        description=f"Agent Software CLI v{VERSION}",
+        description=f"VaultAgent CLI v{VERSION}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="Run 'agent-cli help' for full usage.",
     )

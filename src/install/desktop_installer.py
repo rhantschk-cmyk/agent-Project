@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Agent Software — Desktop Installer (Windows)
+VaultAgent — Desktop Installer (Windows)
 
 A terminal-based installer that:
   1. Checks for the Odin compiler.
   2. Builds the desktop client (Odin / raylib).
-  3. Copies the executable + config into C:\\Program Files\\EmailAgent\\.
+  3. Copies the executable + config into C:\\Program Files\\VaultAgent\\.
   4. Creates a desktop shortcut.
   5. Asks for the server IP and verify key.
 
@@ -23,15 +23,15 @@ import platform
 VERSION = "v0.4 (Standard)"
 REPO_DIR = None  # filled later
 CLIENT_SRC = os.path.join("src", "Client")
-INSTALL_DIR = os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "EmailAgent")
-APP_NAME = "EmailAgent"
-EXE_NAME = "EmailAgent.exe"
-SHORTCUT_NAME = "EmailAgent.lnk"
+INSTALL_DIR = os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "VaultAgent")
+APP_NAME = "VaultAgent"
+EXE_NAME = "VaultAgent.exe"
+SHORTCUT_NAME = "VaultAgent.lnk"
 
 
 def banner() -> None:
     print("==============================================")
-    print("  Agent Software Desktop Installer")
+    print("  VaultAgent Desktop Installer")
     print(f"  Version {VERSION}")
     print("==============================================")
 

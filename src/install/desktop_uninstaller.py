@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Agent Software — Desktop Uninstaller (Windows)
+VaultAgent — Desktop Uninstaller (Windows)
 
 A terminal-based tool that removes the installed desktop client.
 
 Removes:
-  - C:\\Program Files\\EmailAgent\\ (executable + config)
-  - the desktop shortcut "EmailAgent.lnk"
+  - C:\\Program Files\\VaultAgent\\ (executable + config)
+  - the desktop shortcut "VaultAgent.lnk"
 
 Run:
     python desktop_uninstaller.py
@@ -17,13 +17,13 @@ import sys
 import shutil
 import platform
 
-INSTALL_DIR = os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "EmailAgent")
-SHORTCUT_NAME = "EmailAgent.lnk"
+INSTALL_DIR = os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "VaultAgent")
+SHORTCUT_NAME = "VaultAgent.lnk"
 
 
 def banner() -> None:
     print("==============================================")
-    print("  Agent Software Desktop Uninstaller")
+    print("  VaultAgent Desktop Uninstaller")
     print("==============================================")
 
 
@@ -77,7 +77,7 @@ def main() -> None:
     if os.name != "nt":
         info("Not running on Windows; paths may not resolve. Continuing anyway.")
 
-    if not confirm("This will remove the EmailAgent desktop app. Continue?", default=False):
+    if not confirm("This will remove the VaultAgent desktop app. Continue?", default=False):
         print("Aborted.")
         return
 

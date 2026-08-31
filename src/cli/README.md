@@ -1,13 +1,13 @@
-# Agent Software CLI
+# VaultAgent CLI
 
-A server-side command-line tool for the **Agent Software** project, written in **Python**.
+A server-side command-line tool for the **VaultAgent** project, written in **Python**.
 
 ## Features
 
 - `check` — verify the repository structure and run Go analysis tools (`go vet`, `go test`, `staticcheck`).
 - `install` — launch the appropriate installer (server or desktop).
 - `uninstall` — launch the appropriate uninstaller (server or desktop).
-- `start` / `stop` / `restart` — control the `email-agent` systemd service.
+- `start` / `stop` / `restart` — control the `vaultagent` systemd service.
 - `status` — show the service status.
 - `config` — display the current `config.json`.
 - `update` — pull the latest code and rebuild the binary.

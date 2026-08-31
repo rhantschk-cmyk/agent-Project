@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Agent Software — Server Uninstaller (Linux / systemd)
+VaultAgent — Server Uninstaller (Linux / systemd)
 
-A terminal-based tool that removes the email-agent systemd service and all
+A terminal-based tool that removes the vaultagent systemd service and all
 files the server installer created.
 
 Removes:
   - systemd service (stopped + disabled + unit file removed)
-  - binary /usr/local/bin/email-agent
-  - config dir /etc/email-agent (including config.json and docs)
-  - optional: the cloned repo at /opt/email-agent
+  - binary /usr/local/bin/vaultagent
+  - config dir /etc/vaultagent (including config.json and docs)
+  - optional: the cloned repo at /opt/vaultagent
 
 Run with sudo:
     sudo python3 server_uninstaller.py
@@ -20,16 +20,16 @@ import sys
 import shutil
 import subprocess
 
-SERVICE_NAME = "email-agent"
-BINARY_PATH = "/usr/local/bin/email-agent"
-CONFIG_DIR = "/etc/email-agent"
-WORK_DIR = "/opt/email-agent"
+SERVICE_NAME = "vaultagent"
+BINARY_PATH = "/usr/local/bin/vaultagent"
+CONFIG_DIR = "/etc/vaultagent"
+WORK_DIR = "/opt/vaultagent"
 UNIT_PATH = f"/etc/systemd/system/{SERVICE_NAME}.service"
 
 
 def banner() -> None:
     print("==============================================")
-    print("  Agent Software Server Uninstaller")
+    print("  VaultAgent Server Uninstaller")
     print("==============================================")
 
 
@@ -118,7 +118,7 @@ def main() -> None:
     if not is_root():
         error("Please run this uninstaller as root / with sudo.")
 
-    if not confirm("This will remove the email-agent service and config. Continue?", default=False):
+    if not confirm("This will remove the vaultagent service and config. Continue?", default=False):
         print("Aborted.")
         return
 

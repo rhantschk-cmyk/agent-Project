@@ -1,4 +1,4 @@
-# Agent Software — Entwickler- & Betreiber-Guide
+# VaultAgent — Entwickler- & Betreiber-Guide
 
 Dieser Guide erklärt den vollständigen aktuellen Stand des Projekts: was es tut,
 welche Komponenten es gibt, wie man installiert/deinstalliert, was die CLI kann,
@@ -75,7 +75,7 @@ go run .
 Beim Start erscheint ein Banner, danach gestartete Logs mit Zeitstempel:
 
 ```
-Agent Software v0.4 (Standard)
+VaultAgent v0.4 (Standard)
 Pro Version coming soon — unlimited monitors
 ...
 -> Loading Config-File
@@ -95,7 +95,7 @@ Beenden: `Ctrl+C` oder `kill -TERM <pid>`. Das Programm fährt **graceful** heru
 
 - Alle Meldungen gehen über `logf(...)` (in `logging.go`).
 - Ausgabe **immer nach stdout**, optional zusätzlich **in eine Datei**.
-- Datei-Logging aktivieren: `AGENT_LOG_FILE=/var/log/email-agent.log ./email-agent`
+- Datei-Logging aktivieren: `AGENT_LOG_FILE=/var/log/vaultagent.log ./vaultagent`
 - Jede Zeile hat einen Zeitstempel `[2026-08-31 16:40:41]`.
 
 ---
@@ -122,16 +122,16 @@ sudo python3 server_installer.py
 
 Ablauf:
 1. System-Check (OS, Go, Ollama, GPU)
-2. Repo nach `/opt/email-agent` klonen/pullen
-3. Go-Binary nach `/usr/local/bin/email-agent` bauen
-4. Interaktiv Config abfragen → `/etc/email-agent/config.json` (inkl. Wissensbasis in `/etc/email-agent/docs`)
-5. systemd-Unit `email-agent.service` anlegen, aktivieren und starten
+2. Repo nach `/opt/vaultagent` klonen/pullen
+3. Go-Binary nach `/usr/local/bin/vaultagent` bauen
+4. Interaktiv Config abfragen → `/etc/vaultagent/config.json` (inkl. Wissensbasis in `/etc/vaultagent/docs`)
+5. systemd-Unit `vaultagent.service` anlegen, aktivieren und starten
 
 Kontrollieren:
 
 ```bash
-systemctl status email-agent
-journalctl -u email-agent -f      # Logs ansehen
+systemctl status vaultagent
+journalctl -u vaultagent -f      # Logs ansehen
 curl localhost:8080/health        # Healthcheck
 ```
 
@@ -139,17 +139,17 @@ Die systemd-Unit:
 
 ```ini
 [Unit]
-Description=Agent Software - Autonomous AI Email Agent
+Description=VaultAgent - Autonomous AI Email Agent
 After=network-online.target ollama.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/email-agent
-WorkingDirectory=/etc/email-agent
+ExecStart=/usr/local/bin/vaultagent
+WorkingDirectory=/etc/vaultagent
 Restart=always
 RestartSec=5
-Environment=HOME=/etc/email-agent
+Environment=HOME=/etc/vaultagent
 
 [Install]
 WantedBy=multi-user.target
@@ -164,10 +164,10 @@ sudo python3 src/install/server_uninstaller.py
 ```
 
 Entfernt sauber:
-- systemd-Service `email-agent` (gestoppt + disabled + Unit gelöscht)
-- Binary `/usr/local/bin/email-agent`
-- Config-Verzeichnis `/etc/email-agent` (inkl. config.json und docs)
-- optional das geklonte Repo `/opt/email-agent`
+- systemd-Service `vaultagent` (gestoppt + disabled + Unit gelöscht)
+- Binary `/usr/local/bin/vaultagent`
+- Config-Verzeichnis `/etc/vaultagent` (inkl. config.json und docs)
+- optional das geklonte Repo `/opt/vaultagent`
 
 ---
 
@@ -181,9 +181,9 @@ python desktop_installer.py
 ```
 
 Ablauf:
-1. Odin-Compiler prüfen und Client bauen (`EmailAgent.exe`)
-2. Nach `C:\Program Files\EmailAgent\` kopieren (inkl. `config.json`)
-3. Desktop-Verknüpfung `EmailAgent.lnk` erstellen
+1. Odin-Compiler prüfen und Client bauen (`VaultAgent.exe`)
+2. Nach `C:\Program Files\VaultAgent\` kopieren (inkl. `config.json`)
+3. Desktop-Verknüpfung `VaultAgent.lnk` erstellen
 4. `server_ip` + `verify_key` abfragen
 
 **Deinstallieren:**
@@ -214,11 +214,11 @@ sudo chmod +x /usr/local/bin/agent-cli
 | `agent-cli check` | Struktur prüfen + `go vet` + `go test` + `staticcheck` (falls installiert) | nein |
 | `agent-cli install` | Fragt Server/Desktop und startet den passenden Installer | Server: ja |
 | `agent-cli uninstall` | Fragt Server/Desktop und startet den passenden Uninstaller | Server: ja |
-| `agent-cli start` | `systemctl start email-agent` | ja |
-| `agent-cli stop` | `systemctl stop email-agent` | ja |
-| `agent-cli restart` | `systemctl restart email-agent` | ja |
-| `agent-cli status` | `systemctl status email-agent` | nein |
-| `agent-cli config` | Zeigt `config.json` (lokal oder `/etc/email-agent`) | nein |
+| `agent-cli start` | `systemctl start vaultagent` | ja |
+| `agent-cli stop` | `systemctl stop vaultagent` | ja |
+| `agent-cli restart` | `systemctl restart vaultagent` | ja |
+| `agent-cli status` | `systemctl status vaultagent` | nein |
+| `agent-cli config` | Zeigt `config.json` (lokal oder `/etc/vaultagent`) | nein |
 | `agent-cli update` | `git pull` + Server-Binary neu bauen | nein |
 | `agent-cli ask <prompt>` | Fragt den laufenden Agenten über `:8080` | nein |
 | `agent-cli help` | Zeigt Hilfe | – |
@@ -263,7 +263,7 @@ Abgedeckt:
    - echte Gmail-Zugangsdaten aus `config.json` aus dem Git-Index entfernt (untracked + ignoriert)
    - `.gitignore` erweitert (config, memory, logs, build, pycache, Binary)
    - Binärdatei `agent-Projekt` und `__pycache__` getrackt entfernt
-7. **Banner** in `main.go` — `Agent Software v0.4 (Standard)` + Pro-Hinweis beim Start.
+7. **Banner** in `main.go` — `VaultAgent v0.4 (Standard)` + Pro-Hinweis beim Start.
 8. **Logging-System** — neues `logging.go`, alle Ausgaben via `logf`, optional Datei.
 9. **Graceful Shutdown** — SIGINT/SIGTERM beendet alle Komponenten sauber
    (inkl. Fix, dass IMAP-IDLE jetzt abgebrochen werden kann).

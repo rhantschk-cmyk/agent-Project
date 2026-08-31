@@ -12,7 +12,7 @@ const version = "v0.4 (Standard)"
 
 func main() {
 	fmt.Println("==============================================")
-	fmt.Printf("  Agent Software %s\n", version)
+	fmt.Printf("  VaultAgent %s\n", version)
 	fmt.Println("  Pro Version coming soon — unlimited monitors")
 	fmt.Println("  https://github.com/rhantschk-cmyk/agent-Project")
 	fmt.Println("==============================================")

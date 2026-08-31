@@ -1,4 +1,4 @@
-# 🛡️ Agent Software — Autonomous AI Email Agent
+# 🛡️ VaultAgent — Autonomous AI Email Agent
 
 An extremely fast, autonomous, event-driven email processing and AI agent system built in **Go** and powered by local **Ollama LLMs**.
 
@@ -89,9 +89,9 @@ The installer will:
 
 1. Check the system (OS, Go, Ollama, GPU).
 2. Clone or pull the repository.
-3. Build the Go binary into `/usr/local/bin/email-agent`.
+3. Build the Go binary into `/usr/local/bin/vaultagent`.
 4. Ask interactively for your IMAP, model, and security settings, then write the config.
-5. Create and enable a **systemd service** named `email-agent`.
+5. Create and enable a **systemd service** named `vaultagent`.
 6. Start the service automatically.
 
 ### Option B — Desktop Installer (Windows)
@@ -105,7 +105,7 @@ python desktop_installer.py
 The installer will:
 
 1. Check for the Odin compiler and build the desktop client.
-2. Copy the executable and config into `C:\Program Files\EmailAgent\`.
+2. Copy the executable and config into `C:\Program Files\VaultAgent\`.
 3. Create a **desktop shortcut**.
 4. Configure the `server_ip` and `verify_key` to point at your server.
 
@@ -113,7 +113,7 @@ The installer will:
 
 Both components can be fully removed back to a clean state:
 
-**Server (removes the systemd service, binary and `/etc/email-agent`):**
+**Server (removes the systemd service, binary and `/etc/vaultagent`):**
 
 ```bash
 sudo python3 src/install/server_uninstaller.py
@@ -138,8 +138,8 @@ sudo agent-cli uninstall   # then pick server or desktop
 ```bash
 cd src/Server
 cp config.json.example config.json   # then edit your credentials
-go build -o email-agent .
-./email-agent
+go build -o vaultagent .
+./vaultagent
 ```
 
 > ⚠️ **Important:** the server is a multi-file `package main`, so always build/run
@@ -152,7 +152,7 @@ go build -o email-agent .
 
 ```bash
 cd src/Client
-odin build . -out:EmailAgent
+odin build . -out:VaultAgent
 ```
 
 ---

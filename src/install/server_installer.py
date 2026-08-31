@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Agent Software — Server Installer (Linux / systemd)
+VaultAgent — Server Installer (Linux / systemd)
 
 A terminal-based installer that:
   1. Checks the system (OS, Go, Ollama, GPU).
   2. Clones / pulls the repository.
   3. Builds the Go binary.
   4. Asks interactively for config and writes config.json.
-  5. Creates and enables a systemd service (email-agent).
+  5. Creates and enables a systemd service (vaultagent).
   6. Starts the service automatically.
 
 Run with sudo:
@@ -24,16 +24,16 @@ import getpass
 
 VERSION = "v0.4 (Standard)"
 REPO_URL = "https://github.com/rhantschk-cmyk/agent-Project.git"
-SERVICE_NAME = "email-agent"
-BINARY_PATH = "/usr/local/bin/email-agent"
-CONFIG_DIR = "/etc/email-agent"
+SERVICE_NAME = "vaultagent"
+BINARY_PATH = "/usr/local/bin/vaultagent"
+CONFIG_DIR = "/etc/vaultagent"
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
-WORK_DIR = "/opt/email-agent"
+WORK_DIR = "/opt/vaultagent"
 
 
 def banner() -> None:
     print("==============================================")
-    print("  Agent Software Server Installer")
+    print("  VaultAgent Server Installer")
     print(f"  Version {VERSION}")
     print(f"  {REPO_URL}")
     print("==============================================")
@@ -221,7 +221,7 @@ def copy_docs(server_dir: str) -> None:
 def create_systemd_unit() -> str:
     info("Creating systemd unit...")
     unit_content = f"""[Unit]
-Description=Agent Software - Autonomous AI Email Agent
+Description=VaultAgent - Autonomous AI Email Agent
 After=network-online.target ollama.service
 Wants=network-online.target
 
@@ -237,7 +237,7 @@ Environment=HOME={CONFIG_DIR}
 WantedBy=multi-user.target
 """
     unit_path = f"/etc/systemd/system/{SERVICE_NAME}.service"
-    temp_path = "/tmp/email-agent.service"
+    temp_path = "/tmp/vaultagent.service"
     with open(temp_path, "w", encoding="utf-8") as fh:
         fh.write(unit_content)
     run(["cp", temp_path, unit_path])
