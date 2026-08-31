@@ -6,6 +6,11 @@ import (
 )
 
 func main() {
+	fmt.Println("==============================================")
+	fmt.Println("  Agent Software v0.4 (Standard)")
+	fmt.Println("  Pro Version coming soon — unlimited monitors")
+	fmt.Println("  https://github.com/rhantschk-cmyk/agent-Project")
+	fmt.Println("==============================================")
 	fmt.Println("-> Application started")
 	ctx := context.Background()
 

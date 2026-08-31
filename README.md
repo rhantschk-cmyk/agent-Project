@@ -1,119 +1,260 @@
-# 🛡️ Autonomous AI Email Agent & Server Engine (Go-Backend)
+# 🛡️ Agent Software — Autonomous AI Email Agent
 
-Ein extrem schnelles, autonomes und event-getriebenes E-Mail-Verarbeitungs- und KI-Agenten-System, entwickelt in **Go** und betrieben durch lokale **Ollama LLMs**.
+An extremely fast, autonomous, event-driven email processing and AI agent system built in **Go** and powered by local **Ollama LLMs**.
 
----
-
-## 📌 Übersicht & Zweck
-
-Das System überwacht kontinuierlich eingehende E-Mails über IMAP, klassifiziert diese automatisch mittels KI, sammelt Kontext aus Dokumenten und dem Langzeitgedächtnis und erstellt fertige Antwort-Entwürfe direkt im Gmail-Postfach.
-
-Zusätzlich bietet das Backend zwei Netzwerk-Schnittstellen:
-1. **Interaktiver CLI-Server (Port 8080):** Ein abgesicherter JSON-Endpoint für externe Befehle und Live-Anfragen an den Agenten.
-2. **Monitoring CLI / Server (Port 9000):** Ein schlanker Service zur Ausgabe aktueller Hardware- & System-Metriken.
+> **Current version:** `v0.4 (Standard)`  
+> **Pro version:** coming soon — unlimited parallel email monitors, fully configurable in `config.json`.
 
 ---
 
-## ⚡ System-Anforderungen
+## 📌 Overview
 
-Das System ist speziell für **dedizierte Server mit lokaler GPU-Beschleunigung** ausgelegt, um schnelle Inference-Zeiten der lokalen Modelle (z. B. `qwen2.5:14b`) zu garantieren.
+This software continuously monitors incoming emails via **IMAP IDLE**, classifies them automatically using a local AI model, gathers context from a knowledge base and long-term memory, and creates ready-to-send **draft replies** directly in the Gmail mailbox — all autonomously.
 
-### 🖥️ Hardware-Anforderungen
-> ⚠️ **Wichtiger Hinweis:** Der Betrieb auf schwächerer Hardware kann zu sehr hohen Antwortzeiten, Timeouts oder Systemabstürzen führen!
+The system is designed for a hotel business and knows room prices, cancellation policies, and reply templates for wellness and tennis packages.
 
-* **Arbeitsspeicher (RAM):** Mindestens **16 GB** (32 GB empfohlen)
-* **Grafikspeicher (VRAM):** Mindestens **16 GB VRAM** (dedizierte GPU)
-* **Prozessor (CPU):** Mindestens **10 Cores** mit hoher Single-Core-Performance
-* **Kühlung:** Ausreichende und leistungsfähige Kühlung (aufgrund dauerhafter GPU/CPU-Last bei LLM-Generierung)
-* **Netzwerk:** Stabile Internetverbindung für IMAP/SMTP-Synchronisation
+### What it does at a glance
 
-### 📦 Software-Anforderungen
-* **Betriebssystem:** Linux (Debian 12 / Ubuntu Server empfohlen)
-* **Go:** Version 1.22 oder neuer
-* **Treiber:** Aktuelle GPU-Treiber (NVIDIA CUDA / AMD ROCm)
-* **Ollama:** Lokal installiert und als Service aktiv (`ollama serve`)
+1. **Real-time email monitoring** via IMAP IDLE (event-driven, no polling).
+2. **AI classification** of every email into `SPAM`, `IMPORTANT`, or `STANDARD`.
+3. **Autonomous agent loop** that dynamically calls tools to research and understand each request.
+4. **Template-aware replies** using Markdown templates from a knowledge base.
+5. **Gmail draft creation** directly in `[Gmail]/Drafts` (subject prefixed with `[ENTWURF]`).
+6. **Long-term memory** with automatic compression.
+7. **Two network interfaces:** an interactive CLI/chat server and a system monitoring service.
+8. **Native desktop client** (Odin / raylib) with agent chat and system monitoring.
 
 ---
 
-## ⚠️ Disclaimer / Haftungsausschluss
+## ✨ Features
 
-HAFTUNGSAUSSCHLUSS:
-Dieses Programm wird "wie es ist" (as is) zur privaten/eigenverantwortlichen Nutzung bereitgestellt. 
-Der Entwickler übernimmt keinerlei Haftung für die Sicherheit des Servers, Datenverluste, fehlerhaft 
-generierte E-Mail-Entwürfe, Ausfälle oder Hardware-Schäden, die durch hohe Systemlasten oder 
-unzureichende Kühlung entstehen. Die Absicherung des Servers liegt zu 100% beim Betreiber.
+### Standard (v0.4)
+
+| Feature | Description |
+| :--- | :--- |
+| **Event-driven email monitor** | Instant processing of incoming emails via IMAP IDLE |
+| **AI classification** | `SPAM` / `IMPORTANT` / `STANDARD` routing with a fast local model |
+| **Autonomous agent loop** | Up to 30 tool-calling turns to fully research each request |
+| **7 built-in tools** | Memory, inbox search, conversation history, docs, and reply tools |
+| **Knowledge base** | Markdown templates (pricing, policies, reply templates) |
+| **Long-term memory** | Auto-compressed, persistent fact storage |
+| **Gmail draft creation** | Replies placed in `[Gmail]/Drafts` as `[ENTWURF]` emails |
+| **CLI / chat server** | Secure JSON API on port `8080` |
+| **Monitoring service** | System stats on port `9000` |
+| **Desktop client** | Native GUI (Odin / raylib) with chat + monitoring tabs |
+
+### Pro (coming soon)
+
+The **Pro version** takes the agent to the next level:
+
+- **Unlimited parallel email monitors** — instead of a single IMAP thread, the Pro version can monitor **any number of mailboxes in parallel**. The number of concurrent monitors is fully configurable via `config.json`.
+- **Extended tool API** for deeper integration and custom automations.
+- **Multi-account management** across different providers.
+- **Priority support** and earlier access to new features.
+
+> 👉 The Standard version is deliberately limited to **one email monitor**. If you need more, either build the Pro version yourself or contact the developer.
 
 ---
 
-## 🔄 Funktionsweise & Architektur
+## 📥 Installation
 
-### 1. E-Mail Polling & Parsing
-* Das Backend verbindet sich über IMAP (`imap.gmail.com:993`) mit dem Gmail-Konto (unter Verwendung eines Gmail App-Tokens).
-* Eingehende E-Mails werden eingelesen und in interne Go-`structs` geparst.
+There are three ways to install the software:
 
-### 2. KI-Klassifizierung
-Jede E-Mail wird vorab durch ein schnelles Modell analysiert und in eine von drei Kategorien eingeordnet:
-* `SPAM`: Unerwünschte E-Mails (werden ignoriert).
-* `IMPORTANT`: Wichtige oder dringende Anfragen mit hoher Priorität.
-* `STANDARD`: Normale Geschäfts- oder Kundenanfragen.
+1. **Server installer (recommended for Linux servers)** — a terminal-based Python installer that builds the binary and registers it as a `systemd` service.
+2. **Desktop installer (Windows)** — a terminal-based Python installer that places the desktop client into `Program Files` and creates a desktop shortcut.
+3. **Manual build** — follow the steps below.
 
-### 3. Agenten-Loop & Werkzeuge (Tools)
-Erfordert eine E-Mail eine Antwort, startet der autonome Agenten-Loop. Das Modell kann folgende Tools dynamisch aufrufen:
+### Prerequisites
 
-| Tool-Name | Parameter | Beschreibung |
+Before you begin, make sure the following are installed on your system:
+
+| Software | Purpose |
+| :--- | :--- |
+| **Go 1.22+** | Compile the server backend |
+| **Ollama** | Local LLM runtime (`ollama serve` must be running) |
+| **A pullable model** | e.g. `qwen2.5:14b` |
+| **GPU drivers** | NVIDIA CUDA / AMD ROCm (for fast inference) |
+| **Python 3** | For the installers |
+| **Odin compiler** | Only needed if you build the desktop client from source |
+
+### Option A — Server Installer (Linux)
+
+```bash
+git clone https://github.com/rhantschk-cmyk/agent-Project.git
+cd agent-Project/src/install
+sudo python3 server_installer.py
+```
+
+The installer will:
+
+1. Check the system (OS, Go, Ollama, GPU).
+2. Clone or pull the repository.
+3. Build the Go binary into `/usr/local/bin/email-agent`.
+4. Ask interactively for your IMAP, model, and security settings, then write the config.
+5. Create and enable a **systemd service** named `email-agent`.
+6. Start the service automatically.
+
+### Option B — Desktop Installer (Windows)
+
+```bash
+git clone https://github.com/rhantschk-cmyk/agent-Project.git
+cd agent-Project/src/install
+python desktop_installer.py
+```
+
+The installer will:
+
+1. Check for the Odin compiler and build the desktop client.
+2. Copy the executable and config into `C:\Program Files\EmailAgent\`.
+3. Create a **desktop shortcut**.
+4. Configure the `server_ip` and `verify_key` to point at your server.
+
+### Option C — Manual Build
+
+**Server:**
+
+```bash
+cd src/Server
+cp config.json.example config.json   # then edit your credentials
+go build -o email-agent .
+./email-agent
+```
+
+**Desktop client (Odin):**
+
+```bash
+cd src/Client
+odin build . -out:EmailAgent
+```
+
+---
+
+## ⚙️ Server Services & Ports
+
+### 💬 CLI / Chat Server (port `8080`)
+
+Accepts JSON requests over TCP/HTTP and routes them through the same agent loop used for email processing. Authenticated via `cli_secret_key` from the config.
+
+### 📊 Monitoring Service (port `9000`)
+
+Returns JSON system metrics on request: CPU usage (%), RAM usage, free disk space (GB), and system uptime.
+
+---
+
+## 🛠️ Configuration (`config.json`)
+
+The entire system is configured through a central `config.json`. See [`config.json.example`](./config.json.example) for a template with placeholders.
+
+| Section | Keys | Description |
 | :--- | :--- | :--- |
-| `read_memory` | *keine* | Liest abgetrennte Fakten, Vereinbarungen & Notizen aus `memory.txt`. |
-| `write_memory` | `fact` (string) | Speichert neue wichtige Fakten/Preise dauerhaft im Langzeitgedächtnis. |
-| `search_inbox` | `query` (string) | Durchsucht den E-Mail-Posteingang nach früheren Nachrichten zu einem Thema. |
-| `get_conversation_history` | `email` (string), `count` (int) | Ruft die letzten N E-Mails eines bestimmten Absenders ab. |
-| `list_all_docs` | *keine* | Listet alle verfügbaren Vorlagen/Dokumente im `docs/`-Ordner auf. |
-| `read_docs` | `doc` (string) | Liest den genauen Inhalt eines spezifischen Markdown-Templates aus. |
-| `finish_and_reply` | `text` (string), `notes` (string) | Beendet die Recherche und übergibt den finalen E-Mail-Text. |
+| `e-mail` | `username`, `app_token`, `server`, `draft_folder` | IMAP credentials & draft target folder |
+| `program` | `model`, `knowledge_dir`, `cli_secret_key` | LLM model, knowledge base path, API auth key |
+| `memory` | `memory_compression_time`, `memory_file`, `memory_compress_promt` | Memory file and auto-compression settings |
+| `sys_promts` | `standard`, `important`, `classify`, `cli` | Detailed system prompts for each context |
 
-### 4. Template-Verarbeitung & Draft-Erstellung
-* Findet der Agent über `read_docs` ein passendes Template, übernimmt er den Wortlaut und passt nur variable Daten (Namen, Daten, Preise) an.
-* Nach Aufruf von `finish_and_reply` wird der Text in eine Gmail-konforme MIME-Struktur konvertiert und mit dem Betreff **`[ENTWURF] ...`** im Ordner `[Gmail]/Drafts` abgelegt.
+> ⚠️ **Security:** never commit real credentials. The included `config.json.example` uses placeholders — copy it to `config.json` and fill in your own values.
 
 ---
 
-## 🌐 Server-Dienste & Ports
+## 🖥️ Desktop Client
 
-### 💬 CLI / Chat-Server (`Port 8080`)
-* Wartet auf eingehende JSON-Anfragen über TCP/HTTP.
-* **Sicherheit:** Prüft den mitgesendeten Key gegen `cli_secret_key` aus der `config.json`.
-* **Funktion:** Ermöglicht die direkte Interaktion mit dem Agenten-Loop über externe Terminal-Tools oder Apps.
+Located in `src/Client/` and written in **Odin** using `raylib`. It connects to the server over HTTP and provides two tabs:
 
-### 📊 Monitoring Service (`Port 9000`)
-* Liefert auf Anfrage aktuelle Hardware-Statistiken als JSON zurück.
-* **Metriken:** CPU-Auslastung (%), RAM-Belegung / Gesamtspeicher, freier Festplattenspeicher (GB) & System-Uptime.
+- **Agent Chat** — send prompts to the server's port `8080` API and display the response.
+- **Monitoring** — auto-refreshes system stats from port `9000` every 3 seconds with visual progress bars.
 
 ---
 
-## 🛠️ Konfiguration (`config.json`)
+## 🧰 CLI Tool
 
-Die Konfiguration wird über eine zentrale `config.json` geregelt:
+Located in `src/cli/` and written in **Python**. It is a server-side command-line tool for checking code, managing the service, and updating the software. See the [CLI tool's own documentation](./src/cli/README.md) for usage.
 
-{
-  "e-mail": {
-    "username": "user@gmail.com",
-    "app_token": "xxxx-xxxx-xxxx-xxxx",
-    "server": "imap.gmail.com:993",
-    "draft_folder": "[Gmail]/Drafts"
-  },
-  "program": {
-    "model": "qwen2.5:14b",
-    "knowledge_dir": "docs",
-    "cli_secret_key": "DEIN_GEHEIMER_KEY"
-  },
-  "memory": {
-    "memory_compression_time": 5,
-    "memory_file": "memory.txt",
-    "memory_compress_promt": "..."
-  },
-  "sys_promts": {
-    "standard": "...",
-    "important": "...",
-    "classify": "...",
-    "cli": "..."
-  }
-}
+---
+
+## 📁 Project Structure
+
+```
+├── README.md
+├── config.json.example
+└── src/
+    ├── install/
+    │   ├── server_installer.py      # systemd installer (Linux)
+    │   └── desktop_installer.py     # Windows desktop installer
+    ├── cli/
+    │   ├── agent-cli.py              # server-side CLI tool
+    │   └── README.md
+    ├── Client/
+    │   ├── config.json              # client <-> server connection config
+    │   └── main.odin                # desktop GUI (raylib)
+    └── Server/
+        ├── main.go                  # entry point
+        ├── agent.go                 # LLM agent loop & tool execution
+        ├── cliserver.go             # HTTP API server (port 8080)
+        ├── monitoringserver.go      # monitoring service (port 9000)
+        ├── config.go                # config loader
+        ├── mails.go                 # IMAP handling & draft creation
+        ├── memory.go                # long-term memory system
+        ├── tools.go                 # tool definitions for the LLM
+        └── docs/                    # knowledge base (templates, pricing)
+```
+
+---
+
+## 🔄 How the Agent Works
+
+### 1. Email Polling & Parsing
+
+The backend connects to Gmail via IMAP (`imap.gmail.com:993`) using a Gmail App Token. Incoming emails are parsed into internal Go structs.
+
+### 2. AI Classification
+
+Each email is analyzed by a fast model and sorted into:
+- `SPAM` — unwanted emails (ignored).
+- `IMPORTANT` — important or urgent requests.
+- `STANDARD` — normal business or customer inquiries.
+
+### 3. Agent Loop & Tools
+
+If an email needs an answer, the autonomous agent loop starts. The model can dynamically call the following tools:
+
+| Tool | Parameters | Description |
+| :--- | :--- | :--- |
+| `read_memory` | *none* | Reads saved facts, agreements & notes from `memory.txt`. |
+| `write_memory` | `fact` (string) | Stores new important facts/prices permanently. |
+| `search_inbox` | `query` (string) | Searches the inbox for earlier messages on a topic. |
+| `get_conversation_history` | `email` (string), `count` (int) | Fetches the last N emails from a sender. |
+| `list_all_docs` | *none* | Lists all available templates/documents in the `docs/` folder. |
+| `read_docs` | `doc` (string) | Reads the exact content of a specific Markdown template. |
+| `finish_and_reply` | `text` (string), `notes` (string) | Finishes the research and hands over the final email text. |
+
+### 4. Template Processing & Draft Creation
+
+If the agent finds a matching template via `read_docs`, it adopts the wording and only adjusts variable data (names, dates, prices). After calling `finish_and_reply`, the text is converted into a Gmail-compatible MIME structure and placed in `[Gmail]/Drafts` with the subject `[ENTWURF] ...`.
+
+---
+
+## 🚀 Roadmap
+
+- [x] Single email monitor (Standard, v0.4)
+- [ ] Unlimited parallel monitors (Pro)
+- [ ] Extended tool API (Pro)
+- [ ] Multi-provider support (Pro)
+
+---
+
+## ⚠️ Disclaimer / Liability
+
+THIS SOFTWARE IS PROVIDED "AS IS" FOR PRIVATE/SELF-RESPONSIBLE USE. The developer assumes no liability for server security, data loss, incorrectly generated email drafts, outages, or hardware damage caused by high system load or insufficient cooling. The security of your server is 100% your responsibility.
+
+---
+
+## 📄 License
+
+Proprietary — all rights reserved. See [License](#) for details. Contact the developer for commercial / Pro licensing.
+
+---
+
+## 📬 Contact
+
+- Repository: [github.com/rhantschk-cmyk/agent-Project](https://github.com/rhantschk-cmyk/agent-Project)
+- Issues & feature requests: open an issue on GitHub
