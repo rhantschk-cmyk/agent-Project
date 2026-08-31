@@ -280,7 +280,7 @@ THIS SOFTWARE IS PROVIDED "AS IS" FOR PRIVATE/SELF-RESPONSIBLE USE. The develope
 
 ## 📄 License
 
-Proprietary — all rights reserved. See [License](#) for details. Contact the developer for commercial / Pro licensing.
+Proprietary — all rights reserved. This software is **not** open-source. See the [LICENSE](./LICENSE) file for details. Contact the developer for commercial / Pro licensing.
 
 ---
 
