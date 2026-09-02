@@ -270,8 +270,8 @@ If the agent finds a matching template via `read_docs`, it adopts the wording an
 ## 🚀 Roadmap
 
 - [x] Single email monitor (Standard, v0.4)
-- [ ] Unlimited parallel monitors (Pro)
-- [ ] Extended tool API (Pro)
+- [x] Unlimited parallel monitors (Pro)
+- [x] Extended tool API (Pro)
 - [ ] Multi-provider support (Pro)
 
 ---
