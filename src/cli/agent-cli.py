@@ -24,6 +24,7 @@ import json
 import shutil
 import subprocess
 import argparse
+import importlib
 
 VERSION = "0.4 (Standard)"
 REPO_URL = "https://github.com/rhantschk-cmyk/agent-Project"
@@ -120,8 +121,31 @@ def cmd_check(args) -> int:
 
 
 # ---------------------------------------------------------------------------
+# bundled-content path helpers
+# ---------------------------------------------------------------------------
+
+def _base_dir() -> str:
+    """Directory containing the app: extracted bundle dir (PyInstaller) or repo root."""
+    if getattr(sys, "_MEIPASS", None):  # PyInstaller onefile: extracted temp dir
+        return getattr(sys, "_MEIPASS")
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load_installer(module_name: str):
+    """Import an installer module from the repo tree or the PyInstaller bundle."""
+    sys.path.insert(0, os.path.join(_base_dir(), "src"))
+    return importlib.import_module("install." + module_name)
+
+
+# ---------------------------------------------------------------------------
 # install
 # ---------------------------------------------------------------------------
+
+def _run_installer_module(module_name: str) -> int:
+    mod = load_installer(module_name)
+    mod.main()
+    return 0
+
 
 def cmd_install(args) -> int:
     print("=== Installer ===")
@@ -132,10 +156,9 @@ def cmd_install(args) -> int:
     if choice == "1":
         if not require_root():
             return 1
-        return run_cmd([sys.executable, os.path.join("src", "install", "server_installer.py")])
+        return _run_installer_module("server_installer")
     if choice == "2":
-        py = "python" if os.name == "nt" else sys.executable
-        return run_cmd([py, os.path.join("src", "install", "desktop_installer.py")])
+        return _run_installer_module("desktop_installer")
     print_error("Invalid choice.")
     return 1
 
@@ -149,10 +172,9 @@ def cmd_uninstall(args) -> int:
     if choice == "1":
         if not require_root():
             return 1
-        return run_cmd([sys.executable, os.path.join("src", "install", "server_uninstaller.py")])
+        return _run_installer_module("server_uninstaller")
     if choice == "2":
-        py = "python" if os.name == "nt" else sys.executable
-        return run_cmd([py, os.path.join("src", "install", "desktop_uninstaller.py")])
+        return _run_installer_module("desktop_uninstaller")
     print_error("Invalid choice.")
     return 1
 

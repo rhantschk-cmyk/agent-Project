@@ -6,4 +6,10 @@ memory.txt
 build/
 __pycache__/
 *.pyc
+*.spec
 agent-Projekt
+compiled/_build/
+compiled/_dist/
+compiled/.venv/
+compiled/VaultAgent
+compiled/VaultAgent.exe
