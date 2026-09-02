@@ -197,6 +197,8 @@ Located in `src/Client/` and written in **Odin** using `raylib`. It connects to 
 
 Located in `src/cli/` and written in **Python**. It is a server-side command-line tool for checking code, managing the service, and updating the software. See the [CLI tool's own documentation](./src/cli/README.md) for usage.
 
+The CLI can be bundled with the installers into a single executable via the scripts in `compiled/` — `build.sh` for Linux and `build_windows.ps1` for Windows.
+
 ---
 
 ## 📁 Project Structure
@@ -204,6 +206,9 @@ Located in `src/cli/` and written in **Python**. It is a server-side command-lin
 ```
 ├── README.md
 ├── config.json.example
+├── compiled/
+│   ├── build.sh                     # build Linux CLI executable (PyInstaller)
+│   └── build_windows.ps1            # build Windows CLI .exe (PyInstaller)
 └── src/
     ├── install/
     │   ├── server_installer.py      # systemd installer (Linux)
@@ -214,7 +219,6 @@ Located in `src/cli/` and written in **Python**. It is a server-side command-lin
     │   ├── agent-cli.py              # server-side CLI tool
     │   └── README.md
     ├── Client/
-    │   ├── config.json              # client <-> server connection config
     │   └── main.odin                # desktop GUI (raylib)
     └── Server/
         ├── main.go                  # entry point

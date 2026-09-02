@@ -35,3 +35,18 @@ sudo chmod +x /usr/local/bin/agent-cli
 # then simply:
 agent-cli status
 ```
+
+## Pre-compiled binaries
+
+The CLI can be bundled together with the installer modules into a single
+self-contained executable (no Python required on the target machine):
+
+- `compiled/build.sh` — Linux ELF binary (`compiled/VaultAgent`).
+- `compiled/build_windows.ps1` — Windows `.exe` (`compiled/VaultAgent.exe`).
+
+```bash
+./compiled/build.sh           # Linux
+./compiled/build.sh windows   # Windows (requires wine) — or run the .ps1 on Windows
+```
+
+Both scripts use [PyInstaller](https://pyinstaller.org/) (`python -m pip install pyinstaller`).
