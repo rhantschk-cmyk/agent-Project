@@ -284,7 +284,9 @@ THIS SOFTWARE IS PROVIDED "AS IS" FOR PRIVATE/SELF-RESPONSIBLE USE. The develope
 
 ## 📄 License
 
-Proprietary — all rights reserved. This software is **not** open-source. See the [LICENSE](./LICENSE) file for details. Contact the developer for commercial / Pro licensing.
+This repository (the **Standard Edition**) is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file for details.
+
+The **Pro Edition** is a separate product and **not** covered by this license; it is distributed under its own terms. Contact the developer at r.hantschk@gmail.com for Pro licensing.
 
 ---
 

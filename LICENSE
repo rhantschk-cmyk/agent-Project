@@ -1,40 +1,21 @@
-VaultAgent — Proprietary License
+MIT License
 
-Copyright (c) 2026 Raphael Hantschk. All rights reserved.
+Copyright (c) 2026 Raphael Hantschk
 
-NOTICE: This software is proprietary and not free/open-source software.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-Permission to use, copy, modify, and/or distribute this software or any part
-thereof is hereby GRANTED ONLY under the terms of a separate written agreement
-(the "License Agreement") with the copyright holder, Raphael Hantschk.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-1. LICENSE GRANT
-   Without a valid License Agreement, you are NOT permitted to use, copy,
-   modify, distribute, sublicense, or commercially exploit this software or any
-   of its components. A limited, non-exclusive right to install and operate the
-   software is granted exclusively to customers who have obtained a valid
-   License Agreement from the copyright holder (the "Standard Edition" does not
-   grant any redistribution rights).
-
-2. PRO EDITION
-   The "Pro Edition" described in the documentation is a separate product based
-   on this software. It is distributed solely under its own License Agreement
-   and is not covered by any rights granted for the Standard Edition.
-
-3. NO REDISTRIBUTION
-   You may not redistribute, republish, or make this software (including its
-   source code) publicly available without the express prior written consent of
-   the copyright holder.
-
-4. DISCLAIMER OF WARRANTY
-   THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-   IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-5. CONTACT
-   For licensing, commercial use, or the Pro Edition, contact:
-   Raphael Hantschk
-   r.hantschk@gmail.com
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
