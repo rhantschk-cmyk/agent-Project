@@ -50,6 +50,9 @@ build_linux() {
         --hidden-import install.desktop_installer \
         --hidden-import install.server_uninstaller \
         --hidden-import install.desktop_uninstaller \
+        --hidden-import install.cli_installer \
+        --hidden-import cli \
+        --hidden-import cli.agent_cli \
         --noconfirm \
         "$ROOT/src/cli/agent-cli.py"
 
@@ -63,7 +66,7 @@ build_windows() {
         echo "[build] 'wine' not installed."
         echo "[build] On Windows, run:"
         echo "  python -m pip install pyinstaller"
-        echo "  python -m PyInstaller --name VaultAgent --onefile --console --paths src --hidden-import install --hidden-import install.server_installer --hidden-import install.desktop_installer --hidden-import install.server_uninstaller --hidden-import install.desktop_uninstaller --noconfirm src/cli/agent-cli.py"
+        echo "  python -m PyInstaller --name VaultAgent --onefile --console --paths src --hidden-import install --hidden-import install.server_installer --hidden-import install.desktop_installer --hidden-import install.server_uninstaller --hidden-import install.desktop_uninstaller --hidden-import install.cli_installer --hidden-import cli --hidden-import cli.agent_cli --noconfirm src/cli/agent-cli.py"
         echo "  copy _dist\\VaultAgent.exe compiled\\VaultAgent.exe"
         exit 1
     fi
@@ -81,6 +84,9 @@ build_windows() {
         --hidden-import install.desktop_installer \
         --hidden-import install.server_uninstaller \
         --hidden-import install.desktop_uninstaller \
+        --hidden-import install.cli_installer \
+        --hidden-import cli \
+        --hidden-import cli.agent_cli \
         --noconfirm \
         "$(winepath -w "$ROOT/src/cli/agent-cli.py")"
 

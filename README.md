@@ -2,8 +2,8 @@
 
 An extremely fast, autonomous, event-driven email processing and AI agent system built in **Go** and powered by local **Ollama LLMs**.
 
-> **Current version:** `v0.4 (Standard)`  
-> **Pro version:** coming soon — unlimited parallel email monitors, fully configurable in `config.json`.
+> **Current version:** `v0.5 (Standard + Pro)`  
+> The CLI and installers support both the **Standard** (open source) and the **Pro** edition (closed source, private repository, temporary key + device SSH deploy key).
 
 ---
 
@@ -43,16 +43,21 @@ The system is designed for a hotel business and knows room prices, cancellation 
 | **Monitoring service** | System stats on port `9000` |
 | **Desktop client** | Native GUI (Odin / raylib) with chat + monitoring tabs |
 
-### Pro (coming soon)
+### Pro
 
-The **Pro version** takes the agent to the next level:
+The **Pro version** is a separate, **closed-source** product distributed through a
+private GitHub repository. It is intentionally **not** open source and is only
+reachable with a temporary access key:
 
-- **Unlimited parallel email monitors** — instead of a single IMAP thread, the Pro version can monitor **any number of mailboxes in parallel**. The number of concurrent monitors is fully configurable via `config.json`.
-- **Extended tool API** for deeper integration and custom automations.
-- **Multi-account management** across different providers.
+- **Unlimited parallel email monitors** — the Pro version can monitor **any number of mailboxes in parallel**.
+- **Extended tool API** for deeper integration and custom automations (`tools/*.json`).
+- **Multi-account management** across different providers + blacklisting.
+- **Persistent CLI chat sessions** across requests (`session_id`).
 - **Priority support** and earlier access to new features.
 
-> 👉 The Standard version is deliberately limited to **one email monitor**. If you need more, either build the Pro version yourself or contact the developer.
+> 👉 Install it with `agent-cli install` → `[2] Server — Pro edition`. The initial clone
+> uses a **temporary GitHub token** (used once, then scrubbed); afterwards updates run
+> through a **device-bound SSH deploy key**, so no key can ever be intercepted.
 
 ---
 
@@ -60,8 +65,8 @@ The **Pro version** takes the agent to the next level:
 
 There are three ways to install the software:
 
-1. **Server installer (recommended for Linux servers)** — a terminal-based Python installer that builds the binary and registers it as a `systemd` service.
-2. **Desktop installer (Windows)** — a terminal-based Python installer that places the desktop client into `Program Files` and creates a desktop shortcut.
+1. **Server installer (recommended for Linux servers)** — a terminal-based installer that builds the binary and registers it as a `systemd` service. Supports **Standard** and **Pro** editions.
+2. **Desktop installer (Windows)** — a terminal-based installer that places the desktop client into `Program Files` and creates a desktop shortcut.
 3. **Manual build** — follow the steps below.
 
 ### Prerequisites
@@ -79,16 +84,20 @@ Before you begin, make sure the following are installed on your system:
 
 ### Option A — Server Installer (Linux)
 
+Via the CLI (recommended) or directly from a checkout:
+
 ```bash
-git clone https://github.com/rhantschk-cmyk/agent-Project.git
-cd agent-Project/src/install
-sudo python3 server_installer.py
+# from this repository
+python3 src/cli/agent-cli.py install     # then pick: [1] Standard, [2] Pro, [3] Desktop, [4] CLI
+# or directly
+cd src/install
+sudo python3 server_installer.py          # then pick Standard or Pro
 ```
 
 The installer will:
 
 1. Check the system (OS, Go, Ollama, GPU).
-2. Clone or pull the repository.
+2. Clone or pull the chosen repository — **Pro uses a temporary GitHub token** for the clone, scrubs it again immediately, and optionally sets up a **device SSH deploy key** for key-less updates.
 3. Build the Go binary into `/usr/local/bin/vaultagent`.
 4. Ask interactively for your IMAP, model, and security settings, then write the config.
 5. Create and enable a **systemd service** named `vaultagent`.
@@ -195,9 +204,21 @@ Located in `src/Client/` and written in **Odin** using `raylib`. It connects to 
 
 ## 🧰 CLI Tool
 
-Located in `src/cli/` and written in **Python**. It is a server-side command-line tool for checking code, managing the service, and updating the software. See the [CLI tool's own documentation](./src/cli/README.md) for usage.
+Located in `src/cli/` and written in **Python**. It is a server-side command-line tool for
+checking code, managing the service, updating the software and querying the running agent
+(chat, sessions, health, monitoring). It manages **both** the Standard and the Pro edition.
+See the [CLI tool's own documentation](./src/cli/README.md) for usage.
 
-The CLI can be bundled with the installers into a single executable via the scripts in `compiled/` — `build.sh` for Linux and `build_windows.ps1` for Windows.
+The CLI can be installed as a standalone program in three ways:
+
+```bash
+sudo python3 src/cli/agent-cli.py self-install   # global /usr/local/bin/agent-cli
+pip install .                                     # or pipx install .
+./compiled/build.sh                               # single PyInstaller binary (Linux)
+```
+
+The CLI can be bundled with the installers into a single executable via the scripts in
+`compiled/` — `build.sh` for Linux and `build_windows.ps1` for Windows.
 
 ---
 
@@ -206,17 +227,20 @@ The CLI can be bundled with the installers into a single executable via the scri
 ```
 ├── README.md
 ├── config.json.example
+├── pyproject.toml                  # pip/pipx installation of the CLI (agent-cli command)
 ├── compiled/
 │   ├── build.sh                     # build Linux CLI executable (PyInstaller)
 │   └── build_windows.ps1            # build Windows CLI .exe (PyInstaller)
 └── src/
     ├── install/
-    │   ├── server_installer.py      # systemd installer (Linux)
+    │   ├── server_installer.py      # systemd installer (Linux; Standard + Pro)
     │   ├── desktop_installer.py     # Windows desktop installer
+    │   ├── cli_installer.py         # installs the CLI itself (self-install)
     │   ├── server_uninstaller.py    # removes the systemd service + files
     │   └── desktop_uninstaller.py   # removes the desktop app + shortcut
     ├── cli/
-    │   ├── agent-cli.py              # server-side CLI tool
+    │   ├── agent-cli.py             # shim entry point
+    │   ├── agent_cli.py             # server-side CLI tool (implementation)
     │   └── README.md
     ├── Client/
     │   └── main.odin                # desktop GUI (raylib)
@@ -272,6 +296,7 @@ If the agent finds a matching template via `read_docs`, it adopts the wording an
 - [x] Single email monitor (Standard, v0.4)
 - [x] Unlimited parallel monitors (Pro)
 - [x] Extended tool API (Pro)
+- [x] CLI supports Standard + Pro editions incl. private-repo install
 - [ ] Multi-provider support (Pro)
 
 ---

@@ -102,12 +102,25 @@ def remove_repo() -> None:
             ok("Keeping repository (left in place)")
 
 
+def installed_edition() -> str:
+    marker = os.path.join(CONFIG_DIR, "EDITION")
+    if os.path.exists(marker):
+        try:
+            return open(marker, encoding="utf-8").read().strip()
+        except OSError:
+            pass
+    return ""
+
+
 def final_message() -> None:
+    edition = installed_edition()
     print("\n==============================================")
     print("  Uninstall complete")
     print(f"  Service: {SERVICE_NAME} (stopped + disabled)")
     print(f"  Binary:  {BINARY_PATH} (removed)")
     print(f"  Config:  {CONFIG_DIR} (removed)")
+    if edition:
+        print(f"  Edition: {edition.capitalize()}")
     print("==============================================")
     print("  Note: your Gmail App Token was stored in the removed config.")
     print("  If you reinstall, create a new App Token and update config.json.")

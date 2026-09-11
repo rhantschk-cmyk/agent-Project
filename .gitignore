@@ -13,3 +13,6 @@ compiled/_dist/
 compiled/.venv/
 compiled/VaultAgent
 compiled/VaultAgent.exe
+*.egg-info/
+.venv/
+venv/

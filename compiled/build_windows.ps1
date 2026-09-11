@@ -29,6 +29,9 @@ python -m PyInstaller `
     --hidden-import install.desktop_installer `
     --hidden-import install.server_uninstaller `
     --hidden-import install.desktop_uninstaller `
+    --hidden-import install.cli_installer `
+    --hidden-import cli `
+    --hidden-import cli.agent_cli `
     --noconfirm `
     "$ROOT\src\cli\agent-cli.py"
 
